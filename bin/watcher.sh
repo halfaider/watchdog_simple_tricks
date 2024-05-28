@@ -83,11 +83,11 @@ case "${1}" in
         stop
         ;;
     "status")
-        result="$(pidof -o %PPID -x ${WATCHER_CMD})"
-        if [[ -z "${result}" ]]; then
+        pid=$(get_pid)
+        if [[ -z "${pid}" ]]; then
             echo "Dead"
         else
-            echo "Running: ${result}"
+            echo "Running: ${pid}"
         fi
         ;;
     "copy")

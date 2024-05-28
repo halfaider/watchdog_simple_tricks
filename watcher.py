@@ -8,6 +8,7 @@ import logging
 import subprocess
 import pathlib
 import signal
+import traceback
 from types import FrameType
 from textwrap import dedent
 from argparse import ArgumentParser, Namespace
@@ -185,5 +186,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
-
+    try:
+        sys.exit(main())
+    except Exception as e:
+        logger.error(traceback.format_exc())
