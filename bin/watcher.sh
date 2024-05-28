@@ -11,8 +11,13 @@ LOG_CONFIG_FILE="/나의/경로/watchdog_simple_tricks/instance/my_log_config.ya
 MAX_RETRIES=60
 
 
+get_pid() {
+    echo $(ps -ef | grep "${WATCHER_CMD}" | grep -v grep | awk '{print $2}')
+}
+
 is_running() {
-    pidof -o %PPID -x ${WATCHER_CMD} >/dev/null 2>&1
+    pid=$(get_pid)
+    [[ -z "${pid}" ]] && return 1 || return 0
 }
 
 
@@ -28,18 +33,24 @@ start() {
 
 
 stop() {
+    echo "Stopping ${WATCHER_CMD}..."
+    pid=$(get_pid)
+    if is_running; then
+        kill -15 ${pid}
+    fi
     counter=0
     while is_running; do
-        echo "Stopping ${WATCHER_CMD}... (${counter})"
-        pidof -o %PPID -x ${WATCHER_CMD} | xargs kill -15 > /dev/null 2>&1 || true
         if [[ ${counter} -ge ${MAX_RETRIES} ]]; then
-            echo "Could not stop this process... (${counter})"
+            echo "Could not terminate this process..."
+            echo "Send signal 9..."
+            kill -9 ${pid}
             exit 1
         fi
         counter=$((${counter} + 1))
-        sleep 1
+        sleep 5
     done
 }
+
 
 copy() {
     echo ${PWD}
