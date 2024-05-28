@@ -7,7 +7,6 @@ import errno
 import time
 import logging
 import subprocess
-import yaml
 import pathlib
 from textwrap import dedent
 from argparse import ArgumentParser, Namespace

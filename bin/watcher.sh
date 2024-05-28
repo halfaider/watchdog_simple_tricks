@@ -22,7 +22,8 @@ start() {
     command=(nohup ${WATCHER_CMD} tricks "${TRICKS}" ${LOG_LEVEL})
     [[ ! -z "${LOG_FILE}" ]] && command+=(--log-file="${LOG_FILE}")
     [[ ! -z "${LOG_CONFIG_FILE}" ]] && command+=(--log-config="${LOG_CONFIG_FILE}")
-    ${command[@]} >/dev/null 2>&1 &
+    echo "command: ${command[@]}"
+    ${command[@]} 2>&1 &
 }
 
 
