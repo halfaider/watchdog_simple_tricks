@@ -2,14 +2,16 @@
 
 import os
 import sys
-from typing import TYPE_CHECKING, Iterable
 import errno
 import time
 import logging
 import subprocess
 import pathlib
+import signal
+from types import FrameType
 from textwrap import dedent
 from argparse import ArgumentParser, Namespace
+from typing import TYPE_CHECKING, Iterable
 
 try:
     __import__('watchdog')
@@ -132,15 +134,32 @@ def tricks(args: Namespace) -> None:
                 logger.warning('There is no observers...')
                 break
     except WatchdogShutdown:
+        logger.info('Stopping observers...')
         for o in observers:
             o.unschedule_all()
             o.stop()
     for o in observers:
         o.join()
+    logger.info('End of tricks...')
 
 
 def main() -> None:
     """Entry-point function."""
+
+    termination_signals = {signal.SIGTERM, signal.SIGINT}
+    if hasattr(signal, "SIGHUP"):
+        termination_signals.add(signal.SIGHUP)
+
+    def handler_termination_signal(_signum: int, _frame: FrameType):
+        logger.info(f'Signal received: {_signum}')
+        # Neuter all signals so that we don't attempt a double shutdown
+        for signum in termination_signals:
+            signal.signal(signum, signal.SIG_IGN)
+        raise WatchdogShutdown
+
+    for signum in termination_signals:
+        signal.signal(signum, handler_termination_signal)
+
     args = cli.parse_args()
     if args.top_command is None:
         cli.print_help()
@@ -162,7 +181,6 @@ def main() -> None:
         args.func(args)
     except KeyboardInterrupt:
         return 130
-
     return 0
 
 

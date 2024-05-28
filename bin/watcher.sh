@@ -7,7 +7,7 @@ WATCHER_CMD="python3 /나의/경로/watchdog_simple_tricks/watcher.py"
 TRICKS="/나의/경로/watchdog_simple_tricks/instance/my_tricks.yaml"
 LOG_LEVEL="-vv" # default: warning | error(-q) | info(-v) | debug(-vv)
 LOG_FILE="/나의/경로/watcher.log"
-LOG_CONFIG_FILE="/나의/경로/watchdog_simple_tricks/instance/my_logging.yaml"
+LOG_CONFIG_FILE="/나의/경로/watchdog_simple_tricks/instance/my_log_config.yaml"
 MAX_RETRIES=60
 
 
@@ -31,7 +31,7 @@ stop() {
     counter=0
     while is_running; do
         echo "Stopping ${WATCHER_CMD}... (${counter})"
-        pidof -o %PPID -x ${WATCHER_CMD} | xargs kill -9 > /dev/null 2>&1 || true
+        pidof -o %PPID -x ${WATCHER_CMD} | xargs kill -15 > /dev/null 2>&1 || true
         if [[ ${counter} -ge ${MAX_RETRIES} ]]; then
             echo "Could not stop this process... (${counter})"
             exit 1
