@@ -30,7 +30,7 @@ start() {
         [[ ! -z "${LOG_FILE}" ]] && command+=(--log-file="${LOG_FILE}")
         [[ ! -z "${LOG_CONFIG_FILE}" ]] && command+=(--log-config="${LOG_CONFIG_FILE}")
         echo "command: ${command[@]}"
-        ${command[@]} 2>&1 &
+        ${command[@]} >/dev/null 2>&1 &
     fi
 }
 
