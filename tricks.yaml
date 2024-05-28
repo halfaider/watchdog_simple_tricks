@@ -1,0 +1,84 @@
+# 감시에 사용할 옵저버
+# 기본 값: 빈 칸 (실행된 플랫폼에 따라 자동 선택)
+# 가용 값: polling | kqueue | winapi | fsevents | inotify
+# GDS 구드공은 polling
+observer: polling
+# polling 간격 혹은 다른 옵저버에서는 timeout
+# 기본 값: 1 (단위: 초)
+# 가용 값: 양의 정수
+interval: 60
+# 이 경로를 파이썬 path 에 추가해서 모듈을 로딩
+# 기본 값: watcher.py 가 위치한 절대 경로
+# 가용 값: 추가 경로는 세미콜론(;)으로 구분
+python_path: '/data/commands/watchdog_simple_tricks'
+# Trick 클래스는 일종의 이벤트 핸들러로 작동하며 파일 이벤트 발생시 등록된 Conduit에게 이벤트를 전달
+tricks:
+  # 직접 만든 Trick 클래스를 사용할 경우 python_path 경로 안에 작성해서 사용
+  # ex. /data/commands/watchdog_simple_tricks/instance/my_tricks.py : instance.my_tricks.MyTrickClass
+  - simple_tricks.FlaskfarmTrick:
+      # 감시할 경로의 포함 필터
+      # 기본 값: ['*']
+      # 가용 값: pathlib.PurePath.match()로 판단 가능한 값
+      patterns: ['*']
+      # 감시할 경로의 제외 필터
+      # 기본 값: []
+      # 가용 값: pathlib.PurePath.match()로 판단 가능한 값
+      ignore_patterns: ['*.json', '*.yml', '*.smi', '*.srt', '*.txt', '*.ass', '*/.git/*', '*.log.*']
+      # 폴더에 대한 이벤트 감시 여부
+      # 기본 값: false
+      # 가용 값: true | false
+      ignore_directories: true
+      # 대소문자를 구분 여부
+      # 기본 값: false
+      # 가용 값: true | false
+      case_sensitive: true
+      # 하위 폴더 포함 여부
+      # 기본 값: false
+      # 가용 값: true | false
+      recursive: true
+      # 감시할 폴더 목록
+      # GDS 구드공을 감시할 경우 본인 계정의 API가 소모되는 리모트를 마운트해서 감시
+      dirs:
+        - '/감시할/경로1'
+        - '/감시할/경로2'
+      # Conduit 클래스는 Trick 클래스로부터 전달 받은 이벤트를 각 서비스로 전달하는 일종의 dispatcher
+      conduits:
+          # name, class, events, priority는 필수로 입력해야 하는 값
+          # 이 Conduit에 지정할 이름
+        - name: 'my_rclone_refresh'
+          # Conduit에 사용할 클래스
+          # 직접 클래스를 만들 경우: ConduitBase 클래스를 상속받아 flow() 메소드를 구현
+          # 가용 값: conduits.DummyConduit | conduits.RcloneConduit | conduits.PlexmateConduit
+          class: 'conduits.RcloneConduit'
+          # 이 Conduit이 전달 받을 이벤트들
+          # 기본 값: ['moved', 'created', 'deleted', 'modified', 'closed', 'opened'] 혹은 빈 칸
+          # 가용 값: 전달 받을 이벤트만 선택
+          events: ['created']
+          # 이벤트를 전달 받을 우선 순위 (값이 클 수록 먼저 전달 받음)
+          # 기본 값: 0
+          # 가용 값: 양의 정수
+          priority: 3
+          # 여기서부터는 각 Conduit의 고유 설정 값
+          # rclone rc 주소
+          rc_url: 'http://10.0.0.2:5275'
+          # rclone rc 인증용 사용자명
+          rc_user: ''
+          # rclone rc 인증용 비밀번호
+          rc_pass: ''
+          # 대상 리모트 이름 (remote:)
+          vfs: 'gds:'
+          # 리모트 경로로 매핑 (로컬경로1:리모트경로1|로컬경로2:리모트경로2|...)
+          mappings: '/mnt/gds-metadata:'
+        - name: 'my_plex_mate_scan'
+          class: 'conduits.PlexmateConduit'
+          events: ['created']
+          priority: 1
+          # 여기서부터는 각 Conduit의 고유 설정 값
+          ff_url: 'http://flaskfarm:9999'
+          ff_apikey: '1234567890'
+          # 실제 경로로 매핑 (감시경로1:실제경로1|감시경로2:실제경로2|...)
+          mappings: '/mnt/gds-metadata:/mnt/gds'
+          # 단순히 이벤트 로그만 찍는 Conduit
+        - name: 'dummy'
+          priority: 99
+          class: 'conduits.DummyConduit'
