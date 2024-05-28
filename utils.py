@@ -34,31 +34,19 @@ class RedactedFormatter(logging.Formatter):
         return msg
 
 
-def set_logger(level: str, log_config: dict, log_file: Optional[str] = None) -> None:
-    logging_config = log_config.pop('logging')
-    max_bytes = log_config.pop('max_bytes', 5242880)
-    backup_count = log_config.pop('backup_count', 5)
-
-    log_file = pathlib.Path(log_file) if log_file else None
-    log_file_exists = log_file and log_file.parent.exists()
-    if log_file_exists:
-        logging_config['handlers']['rotating_file'] = {
-            'level': level,
-            'formatter': 'redacted',
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': log_file,
-            'mode': 'a',
-            'maxBytes': max_bytes,
-            'backupCount': backup_count,
-        }
-
-    for name, config in logging_config['loggers'].items():
-        config['level'] = level
-        if log_file_exists:
-            config['handlers'].append('rotating_file')
-
-    dictConfig(logging_config)
-    logger.info('log config loaded.')
+def set_logger(log_config: dict) -> None:
+    filename = log_config['handlers']['file_handler']['filename']
+    if not filename:
+        log_config['handlers'].pop('file_handler', None)
+        for config in log_config['loggers'].values():
+            if 'file_handler' in config['handlers']:
+                config['handlers'].remove('file_handler')
+    else:
+        for config in log_config['loggers'].values():
+            if 'file_handler' not in config['handlers']:
+                config['handlers'].append('file_handler')
+    dictConfig(log_config)
+    logger.info('logging config is loaded.')
 
 
 def request(method: str, url: str, data: Optional[dict] = None, timeout: Union[int, tuple, None] = None, **kwds: dict) -> requests.Response:

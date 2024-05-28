@@ -5,10 +5,9 @@
 # 정지: .watcher.sh stop
 WATCHER_CMD="python3 /나의/경로/watchdog_simple_tricks/watcher.py"
 TRICKS="/나의/경로/watchdog_simple_tricks/instance/my_tricks.yaml"
-LOG_LEVEL="-vv" # default: warning | error(-q) | info(-v) | debug(-vv)
-LOG_FILE="/나의/경로/watcher.log"
 LOG_CONFIG_FILE="/나의/경로/watchdog_simple_tricks/instance/my_log_config.yaml"
-MAX_RETRIES=60
+DAEMON=true # true일 경우 nohup으로 실행
+MAX_WAIT_COUNT=60
 
 
 get_pid() {
@@ -26,11 +25,14 @@ start() {
         echo "Already running: $(get_pid)"
     else
         echo "Starting ${WATCHER_CMD}..."
-        command=(nohup ${WATCHER_CMD} tricks "${TRICKS}" ${LOG_LEVEL})
-        [[ ! -z "${LOG_FILE}" ]] && command+=(--log-file="${LOG_FILE}")
+        command=(${WATCHER_CMD} tricks "${TRICKS}")
         [[ ! -z "${LOG_CONFIG_FILE}" ]] && command+=(--log-config="${LOG_CONFIG_FILE}")
         echo "command: ${command[@]}"
-        ${command[@]} >/dev/null 2>&1 &
+        if [[ ${DAEMON} == true ]]; then
+            nohup ${command[@]} >/dev/null 2>&1 &
+        else
+            ${command[@]}
+        fi
     fi
 }
 
@@ -42,14 +44,14 @@ stop() {
     fi
     counter=0
     while is_running; do
-        if [[ ${counter} -ge ${MAX_RETRIES} ]]; then
+        if [[ ${counter} -ge ${MAX_WAIT_COUNT} ]]; then
             echo "Could not terminate this process..."
             echo "Send signal 9..."
             kill -9 $(get_pid)
             exit 1
         fi
         counter=$((${counter} + 1))
-        sleep 5
+        sleep 1
     done
 }
 
