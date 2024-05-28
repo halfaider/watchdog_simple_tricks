@@ -22,28 +22,30 @@ is_running() {
 
 
 start() {
-    stop
-    echo "Starting ${WATCHER_CMD}..."
-    command=(nohup ${WATCHER_CMD} tricks "${TRICKS}" ${LOG_LEVEL})
-    [[ ! -z "${LOG_FILE}" ]] && command+=(--log-file="${LOG_FILE}")
-    [[ ! -z "${LOG_CONFIG_FILE}" ]] && command+=(--log-config="${LOG_CONFIG_FILE}")
-    echo "command: ${command[@]}"
-    ${command[@]} 2>&1 &
+    if is_running; then
+        echo "Already running: $(get_pid)"
+    else
+        echo "Starting ${WATCHER_CMD}..."
+        command=(nohup ${WATCHER_CMD} tricks "${TRICKS}" ${LOG_LEVEL})
+        [[ ! -z "${LOG_FILE}" ]] && command+=(--log-file="${LOG_FILE}")
+        [[ ! -z "${LOG_CONFIG_FILE}" ]] && command+=(--log-config="${LOG_CONFIG_FILE}")
+        echo "command: ${command[@]}"
+        ${command[@]} 2>&1 &
+    fi
 }
 
 
 stop() {
-    echo "Stopping ${WATCHER_CMD}..."
-    pid=$(get_pid)
     if is_running; then
-        kill -15 ${pid}
+        echo "Stopping ${WATCHER_CMD}..."
+        kill -15 $(get_pid)
     fi
     counter=0
     while is_running; do
         if [[ ${counter} -ge ${MAX_RETRIES} ]]; then
             echo "Could not terminate this process..."
             echo "Send signal 9..."
-            kill -9 ${pid}
+            kill -9 $(get_pid)
             exit 1
         fi
         counter=$((${counter} + 1))
@@ -90,6 +92,10 @@ case "${1}" in
         ;;
     "copy")
         copy
+        ;;
+    "restart")
+        stop
+        start
         ;;
     *)
         start
