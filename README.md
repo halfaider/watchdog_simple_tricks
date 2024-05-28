@@ -58,10 +58,9 @@ $ chmox +x instance/my_watcher.sh
 ```
 WATCHER_CMD="python3 /나의/경로/watchdog_simple_tricks/watcher.py"
 TRICKS="/나의/경로/watchdog_simple_tricks/instance/my_tricks.yaml"
-LOG_LEVEL="-vv"
-LOG_FILE="/나의/경로/watcher.log"
 LOG_CONFIG_FILE="/나의/경로/watchdog_simple_tricks/instance/my_logging.yaml"
-MAX_RETRIES=60
+DAEMON=true
+MAX_WAIT_COUNT=60
 ```
 
 ### my_tricks.yaml
@@ -94,20 +93,26 @@ conduits:
 실행
 ----
 
+`my_watcher.sh`에서 `daemon`을 `true`로 설정한 경우 `nohup`을 통해 백그라운드에서 실행됩니다.
+
 ```
 $ instance/my_watcher.sh
 ```
 
-중지
-----
+중지할 경우 `stop`을 입력하세요.
 
 ```
 $ instance/my_watcher.sh stop
 ```
 
-상태
----------
+실행중 상태 확인은 `status`입니다.
 
 ```
 $ instance/my_watcher.sh status
+```
+
+재시작은 `restart` 입니다.
+
+```
+$ instance/my_watcher.sh restart
 ```
