@@ -53,7 +53,7 @@ def set_logger(level: str, log_config: dict, log_file: Optional[str] = None) -> 
         }
 
     for name, config in logging_config['loggers'].items():
-        config['level'] = level if not name == '' else logging.NOTSET
+        config['level'] = level
         if log_file_exists:
             config['handlers'].append('rotating_file')
 
