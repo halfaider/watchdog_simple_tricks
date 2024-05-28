@@ -3,8 +3,15 @@ import logging
 import functools
 import pathlib
 import re
+import subprocess
+import sys
 from typing import Any, Optional, Union, Iterable
 from logging.config import dictConfig
+
+try:
+    __import__('requests')
+except:
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-U', 'requests'])
 
 import requests
 

@@ -16,7 +16,12 @@ try:
     __import__('watchdog')
 except:
     subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-U', 'watchdog'])
+try:
+    __import__('yaml')
+except:
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', '-U', 'pyyaml'])
 
+import yaml
 from watchdog.observers.api import BaseObserver, BaseObserverSubclassCallable
 from watchdog.utils import WatchdogShutdown, load_class
 from watchdog.watchmedo import (
