@@ -4,15 +4,21 @@
 # 실행: ./watcher.sh
 # 정지: .watcher.sh stop
 WATCHER_CMD="python3 /나의/경로/watchdog_simple_tricks/watcher.py"
-TRICKS="/나의/경로/watchdog_simple_tricks/instance/my_tricks.yaml"
 LOG_CONFIG_FILE="/나의/경로/watchdog_simple_tricks/instance/my_log_config.yaml"
+TRICKS="/나의/경로/watchdog_simple_tricks/instance/my_tricks.yaml"
+#TRICKS=(
+#    "/path/my_tricks1.yaml"
+#    "/path/my_tricks2.yaml"
+#    "/path/my_tricks3.yaml"
+#)
 DAEMON=false # true일 경우 nohup으로 실행
-MAX_WAIT_COUNT=60
+MAX_WAIT_COUNT=30
 
 
 get_pid() {
     echo $(ps -ef | grep "${WATCHER_CMD}" | grep -v grep | awk '{print $2}')
 }
+
 
 is_running() {
     pid=$(get_pid)
@@ -25,7 +31,7 @@ start() {
         echo "Already running: $(get_pid)"
     else
         echo "Starting ${WATCHER_CMD}..."
-        command=(${WATCHER_CMD} tricks "${TRICKS}")
+        command=(${WATCHER_CMD} tricks "${TRICKS[@]}")
         [[ ! -z "${LOG_CONFIG_FILE}" ]] && command+=(--log-config="${LOG_CONFIG_FILE}")
         echo "command: ${command[@]}"
         if [[ ${DAEMON} == true ]]; then
@@ -80,11 +86,12 @@ copy() {
     fi
 }
 
+
 case "${1}" in
-    "stop")
+    stop)
         stop
         ;;
-    "status")
+    status)
         pid=$(get_pid)
         if [[ -z "${pid}" ]]; then
             echo "Dead"
@@ -92,10 +99,10 @@ case "${1}" in
             echo "Running: ${pid}"
         fi
         ;;
-    "copy")
+    copy)
         copy
         ;;
-    "restart")
+    restart)
         stop
         start
         ;;

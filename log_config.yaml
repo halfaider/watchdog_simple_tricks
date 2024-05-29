@@ -36,39 +36,39 @@ loggers:
     handlers:
       - 'default'
     level: 'DEBUG'
-    propagate: False
+    propagate: false
   watcher:
     handlers:
       - 'default'
     level: 'DEBUG'
-    propagate: False
+    propagate: false
   utils:
     handlers:
       - 'default'
     level: 'DEBUG'
-    propagate: False
-  simple_tricks:
-    handlers:
-      - 'default'
-    level: 'DEBUG'
-    propagate: False
+    propagate: false
   conduits:
     handlers:
       - 'default'
     level: 'DEBUG'
-    propagate: False
+    propagate: false
+  observers:
+    handlers:
+      - 'default'
+    level: 'DEBUG'
+    propagate: false
   watchdog:
     handlers:
       - 'default'
     level: 'DEBUG'
-    propagate: False
+    propagate: false
   requests:
     handlers:
       - 'default'
     level: 'WARNING'
-    propagate: False
+    propagate: false
   urllib3:
     handlers:
       - 'default'
     level: 'WARNING'
-    propagate: False
+    propagate: false

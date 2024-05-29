@@ -12,7 +12,7 @@ import traceback
 from types import FrameType
 from textwrap import dedent
 from argparse import ArgumentParser, Namespace
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Iterable, Optional
 
 try:
     __import__('watchdog')
@@ -39,12 +39,13 @@ from watchdog.watchmedo import (
 
 from utils import set_logger
 
-
+TERMINATION_SIGNAL = {signal.SIGTERM, signal.SIGINT}
 logger = logging.getLogger(__name__)
 cli = ArgumentParser(epilog=epilog, formatter_class=HelpFormatter)
 cli.add_argument("--version", action="version", version='0.5')
 subparsers = cli.add_subparsers(dest="top_command")
 command_parsers = {}
+
 
 def command(args: list = [], parent: ArgumentParser = subparsers, cmd_aliases: list = []) -> callable:
     def decorator(func: callable) -> callable:
@@ -67,103 +68,105 @@ def schedule_tricks_by_itself(observer: BaseObserver, tricks: Iterable, dir_path
             TrickClass = load_class(name)
             handler = TrickClass(**value)
             for dir in dirs:
-                logger.info(f'Watching: {dir}')
                 observer.schedule(handler, dir, recursive)
+                logger.info(f'Watching: {dir!r}')
+
+
+def get_observer(force_observer: Optional[str] = None) -> BaseObserverSubclassCallable:
+    Observer: BaseObserverSubclassCallable
+    match force_observer:
+        case 'polling':
+            #from watchdog.observers.polling import PollingObserver as Observer
+            from observers import SimplePollingObserver as Observer
+        case 'kqueue':
+            from watchdog.observers.kqueue import KqueueObserver as Observer
+        case 'inotify':
+            from watchdog.observers.inotify import InotifyObserver as Observer
+        case 'fsevents':
+            from watchdog.observers.fsevents import FSEventsObserver as Observer
+        case _:
+            # TYPE_CHECKING is True, but False at runtime.
+            if (not TYPE_CHECKING and force_observer == 'winapi') or (TYPE_CHECKING and sys.platform.startswith("win")):
+                from watchdog.observers.read_directory_changes import WindowsApiObserver as Observer
+            else:
+                from watchdog.observers import Observer
+    return Observer
+
+
+def handler_termination_signal(_signum: int, _frame: FrameType) -> None:
+    logger.info(f'Recieved signal: {_signum}')
+    # Neuter all signals so that we don't attempt a double shutdown
+    for signum in TERMINATION_SIGNAL:
+        signal.signal(signum, signal.SIG_IGN)
+    raise WatchdogShutdown
 
 
 @command(
     [
-        argument("files", nargs="*", help="trick을 정의해 둔 yaml 파일들"),
-        argument('--log-config', help="로그 설정 yaml 파일 경로"),
+        argument("files", nargs="*", help="YAML files that include tricks."),
+        argument('--log-config', help="A YAML file that include logging configs."),
     ],
     cmd_aliases=["tricks"],
 )
 def tricks(args: Namespace) -> None:
     """
-    복수의 yaml 파일에 정의된 tricks 를 한번에 실행
+    Execute tricks in multiple yaml files.
     """
     observers = []
     try:
         for tricks_file in args.files:
-            if not os.path.exists(tricks_file):
-                raise OSError(errno.ENOENT, os.strerror(errno.ENOENT), tricks_file)
-            config = load_config(tricks_file)
+            tricks_file = pathlib.Path(tricks_file)
+            if not tricks_file.exists:
+                raise OSError(errno.ENOENT, os.strerror(errno.ENOENT), str(tricks_file))
+            config = load_config(str(tricks_file))
             try:
                 tricks = config[CONFIG_KEY_TRICKS]
             except KeyError:
-                raise KeyError(f"No {CONFIG_KEY_TRICKS!r} key specified in {tricks_file!r}.")
-
+                raise KeyError(f"No {CONFIG_KEY_TRICKS!r} key specified in {str(tricks_file)!r}.")
             if config.get('python_path'):
                 add_to_sys_path(config['python_path'])
             force_observer = config.get('observer')
-            force_interval = config.get('interval', 1)
-
-            Observer: BaseObserverSubclassCallable
-            if force_observer == 'polling':
-                from watchdog.observers.polling import PollingObserver as Observer
-            elif force_observer == 'kqueue':
-                from watchdog.observers.kqueue import KqueueObserver as Observer
-            elif (not TYPE_CHECKING and force_observer == 'winapi') or (TYPE_CHECKING and sys.platform.startswith("win")):
-                from watchdog.observers.read_directory_changes import WindowsApiObserver as Observer
-            elif force_observer == 'inotify':
-                from watchdog.observers.inotify import InotifyObserver as Observer
-            elif force_observer == 'fsevents':
-                from watchdog.observers.fsevents import FSEventsObserver as Observer
-            else:
-                from watchdog.observers import Observer
-
-            logger.info(f'{Observer.__name__} is selected.')
-
-            observer = Observer(force_interval)
-            dir_path = os.path.dirname(tricks_file)
-            if not dir_path:
-                dir_path = os.path.relpath(os.getcwd())
-            schedule_tricks_by_itself(observer, tricks, dir_path)
-            observer.start()
+            force_timeout = config.get('timeout', 1)
+            Observer: BaseObserverSubclassCallable = get_observer(force_observer)
+            logger.info(f'{tricks_file.name}: {Observer.__name__}')
+            observer = Observer(force_timeout)
+            default_dir = tricks_file.parent.name
+            if not default_dir:
+                default_dir = os.path.relpath(os.getcwd())
+            schedule_tricks_by_itself(observer, tricks, default_dir)
             observers.append(observer)
-
+        for observer in observers:
+            observer.start()
         while True:
             if observers:
-                time.sleep(1)
+                time.sleep(10)
             else:
-                logger.warning('There is no observers...')
+                logger.warning('There are no selected observers.')
                 break
     except WatchdogShutdown:
-        logger.info('Stopping observers...')
+        logger.info(f'Stopping observers: {observers}')
         for o in observers:
             o.unschedule_all()
             o.stop()
     for o in observers:
         o.join()
-    logger.debug('End of tricks...')
+    logger.debug('tricks ends.')
 
 
 def main() -> None:
     """Entry-point function."""
-    termination_signals = {signal.SIGTERM, signal.SIGINT}
     if hasattr(signal, "SIGHUP"):
-        termination_signals.add(signal.SIGHUP)
-
-    def handler_termination_signal(_signum: int, _frame: FrameType):
-        logger.info(f'Signal received: {_signum}')
-        # Neuter all signals so that we don't attempt a double shutdown
-        for signum in termination_signals:
-            signal.signal(signum, signal.SIG_IGN)
-        raise WatchdogShutdown
-
-    for signum in termination_signals:
+        TERMINATION_SIGNAL.add(signal.SIGHUP)
+    for signum in TERMINATION_SIGNAL:
         signal.signal(signum, handler_termination_signal)
-
     args = cli.parse_args()
     if args.top_command is None:
         cli.print_help()
         return 1
-
     log_config = pathlib.Path(args.log_config) if args.log_config else pathlib.Path(__file__).parent / 'log_config.yaml'
     with log_config.open() as file:
         log_config = yaml.safe_load(file)
     set_logger(log_config)
-
     try:
         args.func(args)
     except KeyboardInterrupt:

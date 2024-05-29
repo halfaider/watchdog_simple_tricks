@@ -3,11 +3,12 @@
 # 가용 값: polling | kqueue | winapi | fsevents | inotify
 # GDS 구드공은 polling
 observer: polling
-# polling 간격 혹은 다른 옵저버에서는 timeout
+# 옵저버의 timeout 혹은 polling 간격
 # 기본 값: 1 (단위: 초)
 # 가용 값: 양의 정수
-interval: 60
+timeout: 60
 # 이 경로를 파이썬 path 에 추가해서 모듈을 로딩
+# 직접 만든 클래스가 이 경로에 위치해야 사용 가능
 # 기본 값: watcher.py 가 위치한 절대 경로
 # 가용 값: 추가 경로는 세미콜론(;)으로 구분
 python_path: '/data/commands/watchdog_simple_tricks'
@@ -23,7 +24,15 @@ tricks:
       # 감시할 경로의 제외 필터
       # 기본 값: []
       # 가용 값: pathlib.PurePath.match()로 판단 가능한 값
-      ignore_patterns: ['*.json', '*.yml', '*.smi', '*.srt', '*.txt', '*.ass', '*/.git/*', '*.log.*']
+      ignore_patterns:
+        - '*.json'
+        - '*.yml'
+        - '*.smi'
+        - '*.srt'
+        - '*.txt'
+        - '*.ass'
+        - '*/.git/*'
+        - '*.log.*'
       # 폴더에 대한 이벤트 감시 여부
       # 기본 값: false
       # 가용 값: true | false
