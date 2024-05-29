@@ -31,8 +31,6 @@ from watchdog.watchmedo import (
     command,
     add_to_sys_path,
     load_config,
-    _get_log_level_from_args,
-    LogLevelException,
     command_parsers,
     CONFIG_KEY_TRICKS,
     epilog,
@@ -137,7 +135,7 @@ def tricks(args: Namespace) -> None:
             o.stop()
     for o in observers:
         o.join()
-    logger.info('End of tricks...')
+    logger.debug('End of tricks...')
 
 
 def main() -> None:

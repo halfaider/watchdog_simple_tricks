@@ -1,7 +1,6 @@
 import traceback
 import logging
 import functools
-import pathlib
 import re
 import subprocess
 import sys
@@ -30,21 +29,29 @@ class RedactedFormatter(logging.Formatter):
     def format(self, record):
         msg = super().format(record)
         for pattern in self.patterns:
-            msg = pattern.sub('<READACTED>', msg)
+            match = pattern.search(msg)
+            if match:
+                if len(match.groups()) > 0:
+                    groups = list(match.groups())
+                else:
+                    groups = [match.group(0)]
+                for found in groups:
+                    msg = self.redact(re.compile(found), msg)
         return msg
+
+    def redact(self, pattern: re.Pattern, text: str) -> str:
+        return pattern.sub('<REDACTED>', text)
 
 
 def set_logger(log_config: dict) -> None:
-    filename = log_config['handlers']['file_handler']['filename']
+    filename = log_config['handlers']['default_file_handler']['filename']
     if not filename:
-        log_config['handlers'].pop('file_handler', None)
-        for config in log_config['loggers'].values():
-            if 'file_handler' in config['handlers']:
-                config['handlers'].remove('file_handler')
-    else:
-        for config in log_config['loggers'].values():
-            if 'file_handler' not in config['handlers']:
-                config['handlers'].append('file_handler')
+        log_config['handlers'].pop('default_file_handler', None)
+    for config in log_config['loggers'].values():
+        if not filename and 'default_file_handler' in config['handlers']:
+            config['handlers'].remove('default_file_handler')
+        elif filename and 'default_file_handler' not in config['handlers']:
+            config['handlers'].append('default_file_handler')
     dictConfig(log_config)
     logger.info('logging config is loaded.')
 

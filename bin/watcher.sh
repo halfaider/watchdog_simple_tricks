@@ -6,7 +6,7 @@
 WATCHER_CMD="python3 /나의/경로/watchdog_simple_tricks/watcher.py"
 TRICKS="/나의/경로/watchdog_simple_tricks/instance/my_tricks.yaml"
 LOG_CONFIG_FILE="/나의/경로/watchdog_simple_tricks/instance/my_log_config.yaml"
-DAEMON=true # true일 경우 nohup으로 실행
+DAEMON=false # true일 경우 nohup으로 실행
 MAX_WAIT_COUNT=60
 
 
