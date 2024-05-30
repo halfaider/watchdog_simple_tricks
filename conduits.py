@@ -1,8 +1,8 @@
 import time
-import pathlib
 import functools
 import logging
 import traceback
+from pathlib import Path
 from typing import Optional, Union, Any
 
 from utils import request, parse_mappings, map_path, parse_json_response, trace_event
@@ -38,10 +38,10 @@ class RcloneConduit(ConduitBase):
                  vfs: Optional[str] = None,
                  mappings: Optional[str] = None) -> None:
         super(RcloneConduit, self).__init__(*args)
-        self.rc_url = rc_url
-        self.rc_user = rc_user
-        self.rc_pass = rc_pass
-        self.vfs = vfs
+        self.rc_url = rc_url.strip().strip('/')
+        self.rc_user = rc_user.strip()
+        self.rc_pass = rc_pass.strip()
+        self.vfs = vfs.strip()
         self.mappings: dict = parse_mappings(mappings)
 
     def flow(self, event: dict[str, Union[str, bool]]) -> None:
@@ -107,7 +107,7 @@ class RcloneConduit(ConduitBase):
 
     def refresh(self, local_path: str, is_directory: bool = False) -> None:
         to_be_tested = map_path(local_path, self.mappings)
-        to_be_tested = pathlib.Path(to_be_tested)
+        to_be_tested = Path(to_be_tested)
         parent = to_be_tested.parent
         not_exist_dirs = []
 
@@ -134,28 +134,84 @@ class RcloneConduit(ConduitBase):
                     break
 
 
+class PlexConduit(ConduitBase):
+
+    def __init__(self, *args, plex_url: str, plex_token: str, mappings: str) -> None:
+        super(PlexConduit, self).__init__(*args)
+        self.plex_url = plex_url.strip().strip('/')
+        self.plex_token = plex_token.strip()
+        self.mappings: dict = parse_mappings(mappings)
+
+    def flow(self, event: dict[str, Union[str, bool]]) -> None:
+        '''override'''
+        if not event['is_directory']:
+            self.scan(event['src_path'])
+
+    def api(func: callable) -> callable:
+        @functools.wraps(func)
+        def wrapper(self, *args: tuple, **kwds: dict) -> dict[str, Any]:
+            params: dict = func(self, *args, **kwds)
+            key = params.pop('key', '#')
+            method = params.pop('method', 'GET')
+            params['X-Plex-Token'] = self.plex_token
+            headers = {'Accept': 'application/json'}
+            logger.debug(f'{key}: {params}')
+            return parse_json_response(request(method, f'{self.plex_url}{key}', params=params, headers=headers))
+        return wrapper
+
+    @api
+    def refresh(self, section: int, path: Optional[str] = None, force: bool = False) -> dict[str, str]:
+        params = {
+            'key': f'/library/sections/{section}/refresh',
+            'method': 'GET',
+        }
+        if force:
+            params['force'] = 1
+        if path:
+            params['path'] = path
+        return params
+
+    @api
+    def sections(self) -> dict[str, str]:
+        return {
+            'key': '/library/sections',
+            'method': 'GET'
+        }
+
+    def get_section_by_path(self, path: str) -> int:
+        plex_dir = Path(map_path(path, self.mappings))
+        sections = self.sections()
+        for directory in sections['MediaContainer']['Directory']:
+            for location in directory['Location']:
+                if plex_dir.is_relative_to(location['path']):
+                    return int(directory['key'])
+
+    def scan(self, path: str, force: bool = False) -> None:
+        section = self.get_section_by_path(path)
+        self.refresh(section, path, force)
+
+
 class FFConduit(ConduitBase):
 
     def __init__(self, *args, ff_url: str, ff_apikey: Optional[str] = None) -> None:
         super(FFConduit, self).__init__(*args)
-        self.ff_url = ff_url
-        self.ff_apikey = ff_apikey
+        self.ff_url = ff_url.strip().strip('/')
+        self.ff_apikey = ff_apikey.strip()
 
     def flow(self, event: dict[str, Union[str, bool]]) -> None:
         '''override'''
         raise Exception('You must override this method.')
 
-    def api(package) -> callable:
-        def decorator(method) -> callable:
-            @functools.wraps(method)
-            def wrapper(self, *args: tuple, **kwds: dict) -> dict[str, Any]:
-                command = f'{package}/api/' + '/'.join(method.__name__.split('__'))
-                data: dict = method(self, *args, **kwds)
-                data['apikey'] = self.ff_apikey
-                logger.debug(f'{command}: {data}')
-                return parse_json_response(request('POST', f'{self.ff_url}/{command}', data=data))
-            return wrapper
-        return decorator
+    def api(method) -> callable:
+        @functools.wraps(method)
+        def wrapper(self, *args: tuple, **kwds: dict) -> dict[str, Any]:
+            data: dict = method(self, *args, **kwds)
+            package = data.pop('package', 'system')
+            command = f'{package}/api/' + '/'.join(method.__name__.split('__'))
+            data['apikey'] = self.ff_apikey
+            logger.debug(f'{command}: {data}')
+            return parse_json_response(request('POST', f'{self.ff_url}/{command}', data=data))
+        return wrapper
 
 
 class PlexmateConduit(FFConduit):
@@ -174,9 +230,10 @@ class PlexmateConduit(FFConduit):
     def scan(self, local_path: str) -> None:
         logger.info(f'{self.scan__do_scan(map_path(local_path, self.mappings))}')
 
-    @FFConduit.api(PACKAGE)
+    @FFConduit.api
     def scan__do_scan(self, dir: str) -> dict:
         return {
+            'package': self.PACKAGE,
             'target': dir,
             'mode': 'ADD'
         }

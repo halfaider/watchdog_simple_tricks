@@ -12,6 +12,8 @@ formatters:
     patterns:
       - 'apikey=(.{10})'
       - "'apikey': '(.{10})'"
+      - "'X-Plex-Token': '(.{20})'"
+      - "'X-Plex-Token=(.{20})'"
     format: '%(asctime)s %(module)s:%(lineno)d %(levelname)s: %(message)s'
 handlers:
   default:

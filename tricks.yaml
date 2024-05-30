@@ -16,7 +16,7 @@ python_path: '/data/commands/watchdog_simple_tricks'
 tricks:
   # 직접 만든 Trick 클래스를 사용할 경우 python_path 경로 안에 작성해서 사용
   # ex. /data/commands/watchdog_simple_tricks/instance/my_tricks.py : instance.my_tricks.MyTrickClass
-  - simple_tricks.FlaskfarmTrick:
+  - simple_tricks.SimpleTrick:
       # 감시할 경로의 포함 필터
       # 기본 값: ['*']
       # 가용 값: pathlib.PurePath.match()로 판단 가능한 값

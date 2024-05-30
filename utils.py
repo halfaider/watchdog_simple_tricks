@@ -71,6 +71,18 @@ def request(method: str, url: str, data: Optional[dict] = None, timeout: Union[i
         return response
 
 
+def parse_json_response(response: requests.Response) -> dict[str, Any]:
+    try:
+        result = response.json()
+    except Exception as e:
+        result = {
+            'status_code': response.status_code,
+            'exception': f'{repr(e)}',
+            'content': response.text.strip(),
+        }
+    return result
+
+
 def parse_mappings(text: str) -> dict[str, str]:
     mappings = {}
     if text:
@@ -85,15 +97,6 @@ def map_path(target: str, mappings: dict) -> str:
     for k, v in mappings.items():
         target = target.replace(k, v)
     return target
-
-
-def parse_json_response(response: requests.Response) -> dict[str, Any]:
-    try:
-        result = response.json()
-    except Exception as e:
-        result = {'result': response.text.strip()}
-        logger.error(f'{repr(e)}: {response.text.strip()!r}')
-    return result
 
 
 def trace_event(func: callable) -> callable:

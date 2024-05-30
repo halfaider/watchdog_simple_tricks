@@ -66,13 +66,7 @@ class TrickBase(Trick):
             self.conduits.sort(key=lambda x : x.priority, reverse=True)
 
     def on_any_event(self, event: FileSystemEvent) -> None:
-        event_dict = {
-            'event_type': event.event_type,
-            'is_directory': event.is_directory,
-            'src_path': event.src_path,
-            'dest_path': event.dest_path,
-            'is_synthetic': event.is_synthetic
-        }
+        event_dict = self.event_to_dict(event)
         for conduit in self.conduits:
             if event_dict['event_type'] not in conduit.events:
                 continue
@@ -82,8 +76,15 @@ class TrickBase(Trick):
                 logger.error(traceback.format_exc())
                 continue
 
+    def event_to_dict(self, event: FileSystemEvent) -> dict[str, str]:
+        return {
+            'event_type': event.event_type,
+            'is_directory': event.is_directory,
+            'src_path': event.src_path,
+            'dest_path': event.dest_path,
+            'is_synthetic': event.is_synthetic
+        }
 
-class FlaskfarmTrick(TrickBase):
 
-    def __init__(self, *args: tuple, **kwds: dict) -> None:
-        super(FlaskfarmTrick, self).__init__(*args, **kwds)
+class SimpleTrick(TrickBase):
+    pass
