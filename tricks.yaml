@@ -57,12 +57,13 @@ tricks:
         - name: 'my_rclone_refresh'
           # Conduit에 사용할 클래스
           # 직접 클래스를 만들 경우: ConduitBase 클래스를 상속받아 flow() 메소드를 구현
-          # 가용 값: conduits.DummyConduit | conduits.RcloneConduit | conduits.PlexmateConduit
+          # 가용 값: conduits.DummyConduit | conduits.RcloneConduit | conduits.PlexmateConduit | conduits.PlexConduit
           class: 'conduits.RcloneConduit'
           # 이 Conduit이 전달 받을 이벤트들
           # 기본 값: ['moved', 'created', 'deleted', 'modified', 'closed', 'opened'] 혹은 빈 칸
           # 가용 값: 전달 받을 이벤트만 선택
-          events: ['created']
+          events:
+            - 'created'
           # 이벤트를 전달 받을 우선 순위 (값이 클 수록 먼저 전달 받음)
           # 기본 값: 0
           # 가용 값: 양의 정수
@@ -76,18 +77,31 @@ tricks:
           rc_pass: ''
           # 대상 리모트 이름 (remote:)
           vfs: 'gds:'
-          # 리모트 경로로 매핑 (로컬경로1:리모트경로1|로컬경로2:리모트경로2|...)
-          mappings: '/mnt/gds-metadata:'
+          # 리모트 경로로 매핑 (로컬경로:리모트경로)
+          mappings:
+            - '/mnt/gds-metadata:'
         - name: 'my_plex_mate_scan'
           class: 'conduits.PlexmateConduit'
-          events: ['created']
+          events:
+            - 'created'
           priority: 1
           # 여기서부터는 각 Conduit의 고유 설정 값
           ff_url: 'http://flaskfarm:9999'
           ff_apikey: '1234567890'
-          # 실제 경로로 매핑 (감시경로1:실제경로1|감시경로2:실제경로2|...)
-          mappings: '/mnt/gds-metadata:/mnt/gds'
-          # 단순히 이벤트 로그만 찍는 Conduit
+          # 실제 경로로 매핑 (감시경로:실제경로)
+          mappings:
+            - '/mnt/gds-metadata:/mnt/gds'
+        - name: 'my_plex_web_scan'
+          class: 'conduits.PlexConduit'
+          events:
+            - 'created'
+            - 'removed'
+            - 'moved'
+          priority: 0
+          plex_url: 'http://plex:32400'
+          plex_token: '12345678901234567890'
+        # 단순히 이벤트 로그만 찍는 Conduit
         - name: 'dummy'
           priority: 99
           class: 'conduits.DummyConduit'
+

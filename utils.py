@@ -83,19 +83,13 @@ def parse_json_response(response: requests.Response) -> dict[str, Any]:
     return result
 
 
-def parse_mappings(text: str) -> dict[str, str]:
-    mappings = {}
-    if text:
-        settings = text.splitlines()
-        for setting in settings:
-            source, target = setting.split(':')
-            mappings[source.strip()] = target.strip()
-    return mappings
+def parse_mappings(mappings: Iterable[str]) -> list[tuple[str]]:
+    return [tuple(mapping.split(':')) for mapping in mappings]
 
 
-def map_path(target: str, mappings: dict) -> str:
-    for k, v in mappings.items():
-        target = target.replace(k, v)
+def map_path(target: str, mappings: Iterable[Iterable[str]]) -> str:
+    for mapping in mappings:
+        target = target.replace(mapping[0], mapping[1])
     return target
 
 

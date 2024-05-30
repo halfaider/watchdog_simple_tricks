@@ -146,8 +146,11 @@ def tricks(args: Namespace) -> None:
     except WatchdogShutdown:
         logger.info(f'Stopping observers: {observers}')
         for o in observers:
+            logger.debug(f'unschedule')
             o.unschedule_all()
+            logger.debug(f'stop')
             o.stop()
+            logger.debug(f'stopped: {o}')
     for o in observers:
         o.join()
     logger.debug('tricks ends.')

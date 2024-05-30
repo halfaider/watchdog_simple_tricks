@@ -36,18 +36,19 @@ class RcloneConduit(ConduitBase):
                  rc_user: Optional[str] = None,
                  rc_pass: Optional[str] = None,
                  vfs: Optional[str] = None,
-                 mappings: Optional[str] = None) -> None:
+                 mappings: Optional[list[str]] = None) -> None:
         super(RcloneConduit, self).__init__(*args)
         self.rc_url = rc_url.strip().strip('/')
         self.rc_user = rc_user.strip()
         self.rc_pass = rc_pass.strip()
         self.vfs = vfs.strip()
-        self.mappings: dict = parse_mappings(mappings)
+        self.mappings: list[tuple[str]] = parse_mappings(mappings)
 
     def flow(self, event: dict[str, Union[str, bool]]) -> None:
         '''override'''
-        target =  event.get('dest_path') if event.get('event_type') == 'moved' else event.get('src_path')
-        self.refresh(target, event.get('is_directory'))
+        self.refresh(event.get('src_path'), event.get('is_directory'))
+        if event.get('event_type') == 'moved':
+            self.refresh(event.get('dest_path'), event.get('is_directory'))
 
     def command(method: callable) -> callable:
         @functools.wraps(method)
@@ -106,52 +107,46 @@ class RcloneConduit(ConduitBase):
         return result
 
     def refresh(self, local_path: str, is_directory: bool = False) -> None:
-        to_be_tested = map_path(local_path, self.mappings)
-        to_be_tested = Path(to_be_tested)
-        parent = to_be_tested.parent
-        not_exist_dirs = []
-
-        if not is_directory:
-            to_be_tested = parent
-            parent = to_be_tested.parent
-
-        result = self._refresh(str(to_be_tested), self.vfs)
-        # 파일 경로로 요청시: invalid argument
-        while result['result'].get(str(to_be_tested)) == 'file does not exist':
-            not_exist_dirs.insert(0, str(to_be_tested))
-            to_be_tested = parent
-            parent = to_be_tested.parent
-            result = self._refresh(str(to_be_tested), self.vfs)
-            if str(to_be_tested) == str(parent):
-                logger.warning(f'Hit the top-level path...')
+        remote_path = Path(map_path(local_path, self.mappings))
+        parents: list[Path] = list(remote_path.parents)
+        to_be_tested = str(remote_path) if is_directory else str(parents.pop(0))
+        not_exists_paths = []
+        result = self._refresh(to_be_tested, self.vfs)
+        while result['result'].get(to_be_tested) == 'file does not exist':
+            not_exists_paths.insert(0, to_be_tested)
+            if parents:
+                to_be_tested = str(parents.pop(0))
+                result = self._refresh(to_be_tested, self.vfs)
+            else:
+                logger.warning(f'Hit the top-level path.')
                 break
-
-        if not_exist_dirs:
-            for dir in not_exist_dirs:
-                result = self._refresh(dir, self.vfs)
-                if not result.get(to_be_tested) == 'OK':
-                    logger.error(f'Could not refresh: "{local_path}" result="{result["result"]!r}"')
-                    break
+        for path in not_exists_paths:
+            result = self._refresh(path, self.vfs)
+            if not result.get(path) == 'OK':
+                logger.error(f'Could not refresh: "{str(remote_path)}" result="{result}"')
+                break
 
 
 class PlexConduit(ConduitBase):
 
-    def __init__(self, *args, plex_url: str, plex_token: str, mappings: str) -> None:
+    def __init__(self, *args, plex_url: str, plex_token: str, mappings: Optional[list[str]] = None) -> None:
         super(PlexConduit, self).__init__(*args)
         self.plex_url = plex_url.strip().strip('/')
         self.plex_token = plex_token.strip()
-        self.mappings: dict = parse_mappings(mappings)
+        self.mappings: list[tuple[str]] = parse_mappings(mappings)
 
     def flow(self, event: dict[str, Union[str, bool]]) -> None:
         '''override'''
         if not event['is_directory']:
             self.scan(event['src_path'])
+            if event.get('event_type') == 'moved':
+                self.scan(event['dest_path'])
 
     def api(func: callable) -> callable:
         @functools.wraps(func)
         def wrapper(self, *args: tuple, **kwds: dict) -> dict[str, Any]:
             params: dict = func(self, *args, **kwds)
-            key = params.pop('key', '#')
+            key = params.pop('key', '/identity')
             method = params.pop('method', 'GET')
             params['X-Plex-Token'] = self.plex_token
             headers = {'Accept': 'application/json'}
@@ -179,11 +174,12 @@ class PlexConduit(ConduitBase):
         }
 
     def get_section_by_path(self, path: str) -> int:
-        plex_dir = Path(map_path(path, self.mappings))
+        plex_path = Path(map_path(path, self.mappings))
         sections = self.sections()
         for directory in sections['MediaContainer']['Directory']:
             for location in directory['Location']:
-                if plex_dir.is_relative_to(location['path']):
+                if plex_path.is_relative_to(location['path']) or \
+                   Path(location['path']).is_relative_to(plex_path):
                     return int(directory['key'])
 
     def scan(self, path: str, force: bool = False) -> None:
@@ -218,14 +214,16 @@ class PlexmateConduit(FFConduit):
 
     PACKAGE = 'plex_mate'
 
-    def __init__(self, *args, mappings: str = None, **kwds) -> None:
+    def __init__(self, *args, mappings: Optional[list[str]] = None, **kwds) -> None:
         super(PlexmateConduit, self).__init__(*args, **kwds)
-        self.mappings: dict = parse_mappings(mappings)
+        self.mappings: list[tuple[str]] = parse_mappings(mappings)
 
     def flow(self, event: dict[str, Union[str, bool]]) -> None:
         '''override'''
         if not event['is_directory']:
             self.scan(event['src_path'])
+            if event.get('event_type') == 'moved':
+                self.scan(event['dest_path'])
 
     def scan(self, local_path: str) -> None:
         logger.info(f'{self.scan__do_scan(map_path(local_path, self.mappings))}')
