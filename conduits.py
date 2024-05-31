@@ -2,6 +2,7 @@ import time
 import functools
 import logging
 import traceback
+import shlex
 from pathlib import Path
 from typing import Optional, Union, Any
 
@@ -125,6 +126,7 @@ class RcloneConduit(ConduitBase):
             if not result.get(path) == 'OK':
                 logger.error(f'Could not refresh: "{str(remote_path)}" result="{result}"')
                 break
+        logger.debug(f'{result=}')
 
 
 class PlexConduit(ConduitBase):
@@ -235,3 +237,14 @@ class PlexmateConduit(FFConduit):
             'target': dir,
             'mode': 'ADD'
         }
+
+
+class ShellCommandConduit(ConduitBase):
+
+    def __init__(self, *args, command: str, wait_for_process: bool = True, **kwds) -> None:
+        super(ShellCommandConduit, self).__init__(*args, **kwds)
+        self.command = command
+        self.wait_for_process = wait_for_process
+
+    def flow(self, event: dict[str, Union[str, bool]]) -> None:
+        '''override'''
