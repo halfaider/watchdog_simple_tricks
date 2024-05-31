@@ -4,15 +4,15 @@
 # 실행: ./watcher.sh
 # 정지: .watcher.sh stop
 WATCHER_CMD="python3 /나의/경로/watchdog_simple_tricks/watcher.py"
-LOG_CONFIG_FILE="/나의/경로/watchdog_simple_tricks/instance/my_log_config.yaml"
-TRICKS="/나의/경로/watchdog_simple_tricks/instance/my_tricks.yaml"
+LOG_CONFIG_FILE="/나의/경로/watchdog_simple_tricks/instance/log_config.yaml"
+TRICKS="/나의/경로/watchdog_simple_tricks/instance/tricks.yaml"
 #TRICKS=(
 #    "/path/my_tricks1.yaml"
 #    "/path/my_tricks2.yaml"
 #    "/path/my_tricks3.yaml"
 #)
 DAEMON=false # true일 경우 nohup으로 실행
-MAX_WAIT_COUNT=30
+TERMINATION_TIME_OUT=30
 
 
 get_pid() {
@@ -50,7 +50,7 @@ stop() {
     fi
     counter=0
     while is_running; do
-        if [[ ${counter} -ge ${MAX_WAIT_COUNT} ]]; then
+        if [[ ${counter} -ge ${TERMINATION_TIME_OUT} ]]; then
             echo "Could not terminate this process..."
             echo "Send signal 9..."
             kill -9 $(get_pid)
@@ -63,27 +63,36 @@ stop() {
 
 
 copy() {
-    echo ${PWD}
+    conduits_file="conduits.py"
+    log_config="log_config.yaml"
+    tricks_file="tricks.py"
+    tricks_yaml_file="tricks.yaml"
+    watcher_file="watcher.sh"
+
+    files=("${conduits_file}" "${log_config}" "${tricks_file}" "${tricks_yaml_file}" "${watcher_file}")
+
+    echo "Current working directory: ${PWD}"
+    sample="${PWD}/example"
+
+    for file in ${files[@]}; do
+        echo "example: ${sample}/${file}"
+        [[ ! -e "${sample}/${file}" ]] && {
+            echo "Not exists: ${file}"
+            exit 1
+        }
+    done
+
     instance="${PWD}/instance"
     [[ -d "${instance}" ]] || mkdir "${instance}"
+    [[ -e "${instance}/__init__.py" ]] || touch "${instance}/__init__.py"
 
-    tricks_file="${instance}/my_tricks.yaml"
-    tricks_file_source="${PWD}/tricks.yaml"
-    log_config_file="${instance}/my_log_config.yaml"
-    log_config_file_source="${PWD}/log_config.yaml"
-    watcher_file="${instance}/my_watcher.sh"
-    watcher_file_source="${PWD}/bin/watcher.sh"
-
-    if [[ ! -e "${watcher_file}" ]] && [[ -e "${watcher_file_source}" ]]; then
-        cp "${watcher_file_source}" "${watcher_file}"
-        chmod +x "${watcher_file}"
-    fi
-    if [[ ! -e "${log_config_file}" ]] && [[ -e "${log_config_file_source}" ]]; then
-        cp "${log_config_file_source}" "${log_config_file}"
-    fi
-    if [[ ! -e "${tricks_file}" ]] && [[ -e "${tricks_file_source}" ]]; then
-        cp "${tricks_file_source}" "${tricks_file}"
-    fi
+    for file in ${files[@]}; do
+        if [[ ! -e "${instance}/${file}" ]]; then
+            cp --backup=numbered "${sample}/${file}" "${instance}/${file}"
+        else
+            echo "File exists: ${instance}/${file}"
+        fi
+    done
 }
 
 

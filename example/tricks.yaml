@@ -11,7 +11,7 @@ timeout: 60
 # 직접 만든 클래스가 이 경로에 위치해야 사용 가능
 # 기본 값: watcher.py 가 위치한 절대 경로
 # 가용 값: 추가 경로는 세미콜론(;)으로 구분
-python_path: '/data/commands/watchdog_simple_tricks'
+python_path: '/data/commands/watchdog_simple_tricks;/data/commands/watchdog_simple_tricks/instance'
 # Trick 클래스는 일종의 이벤트 핸들러로 작동하며 파일 이벤트 발생시 등록된 Conduit에게 이벤트를 전달
 tricks:
   # 직접 만든 Trick 클래스를 사용할 경우 python_path 경로 안에 작성해서 사용
@@ -48,8 +48,7 @@ tricks:
       # 감시할 폴더 목록
       # GDS 구드공을 감시할 경우 본인 계정의 API가 소모되는 리모트를 마운트해서 감시
       dirs:
-        - '/감시할/경로1'
-        - '/감시할/경로2'
+        - './instance'
       # Conduit 클래스는 Trick 클래스로부터 전달 받은 이벤트를 각 서비스로 전달하는 일종의 dispatcher
       conduits:
           # name, class, events, priority는 필수로 입력해야 하는 값
@@ -95,7 +94,7 @@ tricks:
           class: 'conduits.PlexConduit'
           events:
             - 'created'
-            - 'removed'
+            - 'deleted'
             - 'moved'
           priority: 0
           plex_url: 'http://plex:32400'
@@ -106,4 +105,9 @@ tricks:
         - name: 'dummy'
           priority: 99
           class: 'conduits.DummyConduit'
-
+  - instance.my_tricks.Mytrick:
+      dirs:
+        - './instance'
+      conduits:
+        - name: 'my_conduit'
+        - class: 'instance.my_conduits.MyConduit'

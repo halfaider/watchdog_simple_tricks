@@ -146,14 +146,12 @@ def tricks(args: Namespace) -> None:
     except WatchdogShutdown:
         logger.info(f'Stopping observers: {observers}')
         for o in observers:
-            logger.debug(f'unschedule')
             o.unschedule_all()
-            logger.debug(f'stop')
             o.stop()
-            logger.debug(f'stopped: {o}')
+            logger.debug(f'Stopped: {o}')
     for o in observers:
         o.join()
-    logger.debug('tricks ends.')
+    logger.debug('Tricks ends.')
 
 
 def main() -> None:
@@ -166,7 +164,7 @@ def main() -> None:
     if args.top_command is None:
         cli.print_help()
         return 1
-    log_config = pathlib.Path(args.log_config) if args.log_config else pathlib.Path(__file__).parent / 'log_config.yaml'
+    log_config = pathlib.Path(args.log_config) if args.log_config else pathlib.Path(__file__).parent / 'example' / 'log_config.yaml'
     with log_config.open() as file:
         log_config = yaml.safe_load(file)
     set_logger(log_config)
