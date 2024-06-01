@@ -54,7 +54,6 @@ stop() {
             echo "Could not terminate this process..."
             echo "Send signal 9..."
             kill -9 $(get_pid)
-            exit 1
         fi
         counter=$((${counter} + 1))
         sleep 1
