@@ -16,6 +16,12 @@ python_path: '/data/commands/watchdog_simple_tricks;/data/commands/watchdog_simp
 tricks:
   # 직접 만든 Trick 클래스를 사용할 경우 python_path 경로 안에 작성해서 사용
   # ex. /data/commands/watchdog_simple_tricks/instance/my_tricks.py : instance.my_tricks.MyTrickClass
+  - instance.tricks.Mytrick:
+      dirs:
+        - './instance'
+      conduits:
+        - name: 'my conduit'
+        - class: 'instance.conduits.MyConduit'
   - simple_tricks.SimpleTrick:
       # 감시할 경로의 포함 필터
       # 기본 값: ['*']
@@ -49,10 +55,17 @@ tricks:
       # GDS 구드공을 감시할 경우 본인 계정의 API가 소모되는 리모트를 마운트해서 감시
       dirs:
         - './instance'
+      # 각 이벤트가 전달되는 간격
+      # 기본 값: 0
+      # 가용 값: 양의 정수
+      event_interval: 1
       # Conduit 클래스는 Trick 클래스로부터 전달 받은 이벤트를 각 서비스로 전달하는 일종의 dispatcher
       conduits:
-          # name, class, events, priority는 필수로 입력해야 하는 값
-          # 이 Conduit에 지정할 이름
+        - name: 'dummy'
+          priority: 99
+          class: 'conduits.DummyConduit'
+          # class, name은 필수로 입력해야 하는 값
+          # Conduit에 지정할 이름
         - name: 'my_rclone_refresh'
           # Conduit에 사용할 클래스
           # 직접 클래스를 만들 경우: ConduitBase 클래스를 상속받아 flow() 메소드를 구현
@@ -101,13 +114,14 @@ tricks:
           plex_token: '12345678901234567890'
           mappings:
             - '/mnt/gds-metadata:/mnt/gds'
-        # 단순히 이벤트 로그만 찍는 Conduit
-        - name: 'dummy'
-          priority: 99
-          class: 'conduits.DummyConduit'
-  - instance.my_tricks.Mytrick:
-      dirs:
-        - './instance'
-      conduits:
-        - name: 'my_conduit'
-        - class: 'instance.my_conduits.MyConduit'
+        - name: 'shell command'
+          class: 'conduits.ShellCommandConduit'
+          events: ['modified']
+          # 여기서부터는 각 Conduit의 고유 설정 값
+          # 프로세스가 끝날 때 까지 대기
+          wait_for_process: true
+          # 이전 이벤트로 실행된 프로세스가 아직 실행중이면 추가 프로세스 실행하지 않고 건너뛰기
+          drop_during_process: false
+          # 명령어에 event_type, file(directory), src_path, dest_path 순으로 인자를 전달
+          command: '/data/src/watchdog_simple_tricks/instance/test.sh'
+

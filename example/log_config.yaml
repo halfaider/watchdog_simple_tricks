@@ -62,7 +62,7 @@ loggers:
   watchdog:
     handlers:
       - 'default'
-    level: 'DEBUG'
+    level: 'WARNING'
     propagate: false
   requests:
     handlers:

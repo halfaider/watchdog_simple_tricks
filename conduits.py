@@ -3,8 +3,11 @@ import functools
 import logging
 import traceback
 import shlex
+import subprocess
 from pathlib import Path
 from typing import Optional, Union, Any
+
+from watchdog.utils.process_watcher import ProcessWatcher
 
 from utils import request, parse_mappings, map_path, parse_json_response, trace_event
 
@@ -240,11 +243,40 @@ class PlexmateConduit(FFConduit):
 
 
 class ShellCommandConduit(ConduitBase):
+    '''from watchdog.tricks.ShellCommandTrick'''
 
-    def __init__(self, *args, command: str, wait_for_process: bool = True, **kwds) -> None:
+    def __init__(self, *args, command: str, wait_for_process: bool = True, drop_during_process = True, **kwds) -> None:
         super(ShellCommandConduit, self).__init__(*args, **kwds)
         self.command = command
         self.wait_for_process = wait_for_process
+        self.drop_during_process = drop_during_process
+
+        self.process = None
+        self.process_watchers = set()
 
     def flow(self, event: dict[str, Union[str, bool]]) -> None:
         '''override'''
+        if self.drop_during_process and self.is_process_running():
+            logger.debug(f'Already running: {self.process_watchers}')
+            return
+
+        cmd_parts = shlex.split(self.command)
+        cmd_parts.append(event['event_type'])
+        cmd_parts.append('directory' if event['is_directory'] else 'file')
+        cmd_parts.append(event['src_path'])
+        cmd_parts.append(event['dest_path'])
+        logger.info(f'Command: {cmd_parts}')
+
+        self.process = subprocess.Popen(cmd_parts)
+        if self.wait_for_process:
+            self.process.wait()
+        else:
+            process_watcher = ProcessWatcher(self.process, None)
+            self.process_watchers.add(process_watcher)
+            process_watcher.process_termination_callback = functools.partial(
+                self.process_watchers.discard, process_watcher
+            )
+            process_watcher.start()
+
+    def is_process_running(self):
+        return self.process_watchers or (self.process is not None and self.process.poll() is None)

@@ -1,7 +1,11 @@
+import logging
 from typing import Union
 
 from conduits import ConduitBase
 from utils import trace_event
+
+
+logger = logging.getLogger(__name__)
 
 
 class MyConduit(ConduitBase):

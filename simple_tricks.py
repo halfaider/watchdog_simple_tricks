@@ -1,5 +1,6 @@
 import traceback
 import logging
+import time
 from typing import Optional, Iterable
 
 from watchdog.utils import load_class
@@ -34,26 +35,24 @@ class TrickBase(Trick):
                  ignore_patterns: Optional[Iterable] = None,
                  ignore_directories: Optional[bool] = False,
                  case_sensitive: Optional[bool] = False,
-                 conduits: Optional[Iterable] = None) -> None:
+                 conduits: Optional[Iterable] = None,
+                 event_interval: Optional[int] = 0) -> None:
         super(TrickBase, self).__init__(patterns, ignore_patterns, ignore_directories, case_sensitive)
+        self.event_interval = event_interval
         if conduits:
             for conduit in conduits:
                 try:
-                    name = conduit.pop('name')
                     _class = conduit.pop('class')
-                except KeyError as ke:
-                    logger.error(f'{ke} not in {conduit}')
+                    name = conduit.pop('name')
+                    if not _class or not name:
+                        raise Exception(f'class or name is empty.')
+                except Exception as e:
+                    logger.error(f'{e}')
                     continue
                 events = conduit.pop('events', EVENTS)
-                if not events:
-                    events = EVENTS
-                else:
-                    unknown_events = []
-                    for event in events:
-                        if event not in EVENTS:
-                            unknown_events.append(event)
-                    if unknown_events:
-                        logger.error(f'{unknown_events} not in {EVENTS}')
+                for event in events:
+                    if event not in EVENTS:
+                        logger.error(f'{event} not in {EVENTS}')
                         continue
                 priority = int(conduit.pop('priority', 0))
                 try:
@@ -75,6 +74,8 @@ class TrickBase(Trick):
             except Exception:
                 logger.error(traceback.format_exc())
                 continue
+        # sleep between events
+        time.sleep(self.event_interval)
 
     def event_to_dict(self, event: FileSystemEvent) -> dict[str, str]:
         return {
