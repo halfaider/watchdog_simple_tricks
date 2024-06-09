@@ -20,9 +20,10 @@ logger = logging.getLogger(__name__)
 
 class RedactedFormatter(logging.Formatter):
 
-    def __init__(self, *args, patterns: Iterable = [], **kwds):
+    def __init__(self, *args, patterns: Iterable = [], substitute: str = '<REDACTED>', **kwds):
         super(RedactedFormatter, self).__init__(*args, **kwds)
         self.patterns = []
+        self.substitute = substitute
         for pattern in patterns:
             self.patterns.append(re.compile(pattern))
 
@@ -40,7 +41,7 @@ class RedactedFormatter(logging.Formatter):
         return msg
 
     def redact(self, pattern: re.Pattern, text: str) -> str:
-        return pattern.sub('<REDACTED>', text)
+        return pattern.sub(self.substitute, text)
 
 
 def set_logger(log_config: dict) -> None:
@@ -72,14 +73,15 @@ def request(method: str, url: str, data: Optional[dict] = None, timeout: Union[i
 
 
 def parse_json_response(response: requests.Response) -> dict[str, Any]:
+    result = {
+        'status_code': response.status_code,
+        'content': response.text.strip(),
+    }
     try:
-        result = response.json()
+        if response.text:
+            result = response.json()
     except Exception as e:
-        result = {
-            'status_code': response.status_code,
-            'exception': f'{repr(e)}',
-            'content': response.text.strip(),
-        }
+        result['exception'] = f'{repr(e)}'
     return result
 
 

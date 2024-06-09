@@ -1,9 +1,9 @@
 import time
 import functools
 import logging
-import traceback
 import shlex
 import subprocess
+import datetime
 from pathlib import Path
 from typing import Optional, Union, Any
 
@@ -97,7 +97,6 @@ class RcloneConduit(ConduitBase):
 
     def is_file(self, remote_path: str) -> bool:
         result: dict = self.operations__stat(remote_path, self.vfs)
-        logger.debug(result)
         item = result.get('item', {})
         return (item.get('IsDir').lower() == 'true') if item else False
 
@@ -280,3 +279,66 @@ class ShellCommandConduit(ConduitBase):
 
     def is_process_running(self):
         return self.process_watchers or (self.process is not None and self.process.poll() is None)
+
+
+class MessenserConduit(ConduitBase):
+
+    def __init__(self, *args, **kwds) -> None:
+        super(MessenserConduit, self).__init__(*args, **kwds)
+
+    def flow(self, event: dict[str, Union[str, bool]]) -> None:
+        '''override'''
+
+
+class DiscordConduit(MessenserConduit):
+
+    API_URL = 'https://discord.com/api'
+
+    def __init__(self, *args, webhook_id: str, webhook_token: str, mappings: Optional[list[str]] = None, **kwds) -> None:
+        super(DiscordConduit, self).__init__(*args, **kwds)
+        self.webhook_id = webhook_id
+        self.webhook_token = webhook_token
+        self.mappings: list[tuple[str]] = parse_mappings(mappings)
+
+    @property
+    def headers(self) -> dict:
+        return {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json, */*'
+        }
+
+    def api(func) -> callable:
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwds) -> dict:
+            params = func(self, *args, ** kwds)
+            api = params.pop('api')
+            method = params.pop('method')
+            logger.debug(f'{api}: {params}')
+            return parse_json_response(request(method, f'{self.API_URL}{api}', json=params, headers=self.headers))
+        return wrapper
+
+    @api
+    def webhook(self, username: str = 'Watchdog', content: str = None, embeds: list[dict] = None) -> dict:
+        params = {
+            'api': f'/webhooks/{self.webhook_id}/{self.webhook_token}',
+            'method': 'POST',
+            'username': username,
+        }
+        if embeds:
+            params['embeds'] = embeds
+        else:
+            params['content'] = content or 'No content'
+        return params
+
+    def flow(self, event: dict[str, Union[str, bool]]) -> None:
+        '''override'''
+        if event['is_directory']:
+            return
+        path = event["dest_path"] if event["event_type"] == 'moved' else event["src_path"]
+        embed ={
+            'type': 'rich',
+            'title': event["event_type"],
+            'description': map_path(path, self.mappings),
+            'timestamp': str(datetime.datetime.now(datetime.timezone.utc))
+        }
+        logger.debug(self.webhook(embeds=[embed]))
