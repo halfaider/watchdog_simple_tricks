@@ -3,7 +3,7 @@ from typing import Optional, Iterable
 
 from watchdog.events import FileSystemEvent
 
-from simple_tricks import TrickBase
+from tricks import TrickBase
 
 
 logger = logging.getLogger(__name__)

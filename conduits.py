@@ -335,10 +335,11 @@ class DiscordConduit(MessenserConduit):
         if event['is_directory']:
             return
         path = event["dest_path"] if event["event_type"] == 'moved' else event["src_path"]
+        #_now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9),'utc'))
+        _now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
         embed ={
             'type': 'rich',
             'title': event["event_type"],
-            'description': map_path(path, self.mappings),
-            'timestamp': str(datetime.datetime.now(datetime.timezone.utc))
+            'description': f'{map_path(path, self.mappings)}\n\n{_now}',
         }
         logger.debug(self.webhook(embeds=[embed]))

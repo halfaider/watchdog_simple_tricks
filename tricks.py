@@ -60,7 +60,8 @@ class TrickBase(Trick):
                     conduit_ins = conduit_cls(name, events, priority, **conduit)
                     self.conduits.append(conduit_ins)
                 except Exception as e:
-                    logger.error(f'{e}')
+                    logger.error(f'Could not initiate: {name} {_class}')
+                    logger.error(traceback.format_exc())
                     continue
             self.conduits.sort(key=lambda x : x.priority, reverse=True)
 

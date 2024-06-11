@@ -1,11 +1,17 @@
 import traceback
 import logging
 import functools
+import threading
 import re
 import subprocess
 import sys
-from typing import Any, Optional, Union, Iterable
+import os
+import errno
+from stat import S_ISDIR
+from typing import Any, Optional, Union, Iterable, Callable, Tuple, Iterator
 from logging.config import dictConfig
+
+from watchdog.utils.dirsnapshot import DirectorySnapshot
 
 try:
     __import__('requests')
@@ -42,6 +48,74 @@ class RedactedFormatter(logging.Formatter):
 
     def redact(self, pattern: re.Pattern, text: str) -> str:
         return pattern.sub(self.substitute, text)
+
+
+class SimpleDirectorySnapShot(DirectorySnapshot):
+
+    def __init__(
+        self,
+        path: str,
+        recursive: bool = True,
+        stat: Callable[[str], os.stat_result] = os.stat,
+        listdir: Callable[[Optional[str]], Iterator[os.DirEntry]] = os.scandir,
+        stopped_event: threading.Event = None,
+    ):
+        self.recursive = recursive
+        self.stat = stat
+        self.listdir = listdir
+        self._stopped_event = stopped_event
+
+        self._stat_info: dict[str, os.stat_result] = {}
+        self._inode_to_path: dict[Tuple[int, int], str] = {}
+
+        st = self.stat(path)
+        self._stat_info[path] = st
+        self._inode_to_path[(st.st_ino, st.st_dev)] = path
+
+        for p, st in self.walk(path):
+            if not self.should_keep_running: break
+            i = (st.st_ino, st.st_dev)
+            self._inode_to_path[i] = p
+            self._stat_info[p] = st
+
+    @property
+    def should_keep_running(self):
+        return not self._stopped_event.is_set()
+
+    def walk(self, root: str) -> Iterator[Tuple[str, os.stat_result]]:
+        if not self.should_keep_running: return
+        try:
+            paths = [os.path.join(root, entry.name) for entry in self.listdir(root)]
+        except OSError as e:
+            # Directory may have been deleted between finding it in the directory
+            # list of its parent and trying to delete its contents. If this
+            # happens we treat it as empty. Likewise if the directory was replaced
+            # with a file of the same name (less likely, but possible).
+            if e.errno in (errno.ENOENT, errno.ENOTDIR, errno.EINVAL):
+                return
+            else:
+                raise
+
+        entries = []
+        for p in paths:
+            if not self.should_keep_running: break
+            try:
+                entry = (p, self.stat(p))
+                entries.append(entry)
+                yield entry
+            except OSError:
+                continue
+
+        if self.recursive:
+            for path, st in entries:
+                if not self.should_keep_running: break
+                try:
+                    if S_ISDIR(st.st_mode):
+                        for entry in self.walk(path):
+                            if not self.should_keep_running: break
+                            yield entry
+                except PermissionError:
+                    pass
 
 
 def set_logger(log_config: dict) -> None:

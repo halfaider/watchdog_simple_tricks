@@ -25,7 +25,7 @@ watchdog_simple_tricks
 ├── conduits.py
 ├── observers.py
 ├── README.md
-├── simple_tricks.py
+├── tricks.py
 ├── utils.py
 └── watcher.py
 ```

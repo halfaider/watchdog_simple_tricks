@@ -22,7 +22,7 @@ tricks:
       conduits:
         - name: 'my conduit'
         - class: 'instance.conduits.MyConduit'
-  - simple_tricks.SimpleTrick:
+  - tricks.SimpleTrick:
       # 감시할 경로의 포함 필터
       # 기본 값: ['*']
       # 가용 값: pathlib.PurePath.match()로 판단 가능한 값
