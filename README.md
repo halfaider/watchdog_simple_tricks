@@ -370,3 +370,25 @@ tricks:
           mappings: ['/mnt/gds-metadata:']
           my_setting: 'Bow Wow'
 ```
+
+### 로그 파일
+
+로그 파일은 `/instance/log_config.yaml`에서 설정해 주세요.
+```yaml
+...
+handlers:
+  default:
+    level: 'NOTSET'
+    formatter: 'redacted'
+    class: 'logging.StreamHandler'
+    stream: 'ext://sys.stdout'
+  default_file_handler: # 이 핸들러의 이름은 고정
+    level: 'NOTSET'
+    formatter: 'redacted'
+    class: 'logging.handlers.RotatingFileHandler'
+    filename: '/path/to/log_file.log' # 로그를 파일에 저장하려면 파일 경로 입력
+    mode: 'a'
+    maxBytes: 5242880
+    backupCount: 5
+...
+```
