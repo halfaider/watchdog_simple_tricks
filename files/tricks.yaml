@@ -2,11 +2,11 @@
 # 기본 값: 빈 칸 (실행된 플랫폼에 따라 자동 선택)
 # 가용 값: polling | kqueue | winapi | fsevents | inotify
 # GDS 구드공은 polling
-observer: polling
+observer:
 # 옵저버의 timeout 혹은 polling 간격
 # 기본 값: 1 (단위: 초)
 # 가용 값: 양의 정수
-timeout: 60
+timeout: 1
 # 이 경로를 파이썬 path 에 추가해서 모듈을 로딩
 # 직접 만든 클래스가 이 경로에 위치해야 사용 가능
 # 기본 값: watcher.py 가 위치한 절대 경로
@@ -16,7 +16,7 @@ python_path: '/data/commands/watchdog_simple_tricks;/data/commands/watchdog_simp
 tricks:
   # 직접 만든 Trick 클래스를 사용할 경우 python_path 경로 안에 작성해서 사용
   # ex. /data/commands/watchdog_simple_tricks/instance/my_tricks.py : instance.my_tricks.MyTrickClass
-  - instance.tricks.Mytrick:
+  - instance.tricks.MyTrick:
       dirs:
         - './instance'
       conduits:

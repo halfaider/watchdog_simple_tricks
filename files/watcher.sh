@@ -72,7 +72,7 @@ copy() {
     files=("${conduits_file}" "${log_config}" "${tricks_file}" "${tricks_yaml_file}" "${watcher_file}")
 
     echo "Base directory: ${BASE}"
-    exit 0
+
     sample="${BASE}/../files"
 
     for file in ${files[@]}; do
