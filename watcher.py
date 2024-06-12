@@ -153,7 +153,9 @@ def tricks(args: Namespace) -> None:
             o.stop()
             logger.debug(f'Stopped: {o}')
     for o in observers:
-        o.join()
+        if o.ident:
+            logger.debug(f'Join: {o}')
+            o.join()
     logger.debug('Tricks ends.')
 
 
@@ -167,7 +169,7 @@ def main() -> None:
     if args.top_command is None:
         cli.print_help()
         return 1
-    log_config = pathlib.Path(args.log_config) if args.log_config else pathlib.Path(__file__).parent / 'example' / 'log_config.yaml'
+    log_config = pathlib.Path(args.log_config) if args.log_config else pathlib.Path(__file__).parent / 'files' / 'log_config.yaml'
     with log_config.open() as file:
         log_config = yaml.safe_load(file)
     set_logger(log_config)

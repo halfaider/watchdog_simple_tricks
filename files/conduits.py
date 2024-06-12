@@ -1,5 +1,5 @@
 import logging
-from typing import Union
+from typing import Union, Optional
 
 from conduits import ConduitBase
 from utils import trace_event
@@ -10,8 +10,9 @@ logger = logging.getLogger(__name__)
 
 class MyConduit(ConduitBase):
 
-    def __init__(self, name: str, events: list, priority: int) -> None:
-        super(MyConduit, self).__init__(name, events, priority)
+    def __init__(self, *args, my_setting: str, **kwds) -> None:
+        super(MyConduit, self).__init__(*args, **kwds)
+        self.my_setting = my_setting
 
     @trace_event
     def flow(self, event: dict[str, Union[str, bool]]) -> None:
@@ -23,4 +24,4 @@ class MyConduit(ConduitBase):
         'is_synthetic': True | False
         }
         '''
-        pass
+        logger.debug(f'{self.my_setting=}')

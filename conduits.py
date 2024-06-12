@@ -9,7 +9,10 @@ from typing import Optional, Union, Any
 
 from watchdog.utils.process_watcher import ProcessWatcher
 
-from utils import request, parse_mappings, map_path, parse_json_response, trace_event
+try:
+    from utils import request, parse_mappings, map_path, parse_json_response, trace_event
+except:
+    from .utils import request, parse_mappings, map_path, parse_json_response, trace_event
 
 
 logger = logging.getLogger(__name__)
@@ -17,10 +20,11 @@ logger = logging.getLogger(__name__)
 
 class ConduitBase:
 
-    def __init__(self, name: str, events: list, priority: int) -> None:
+    def __init__(self, name: str, events: list, priority: int, mappings: Optional[list[str]] = None) -> None:
         self.name = name
         self.events = events
         self.priority = priority
+        self.mappings: list[tuple[str]] = parse_mappings(mappings)
 
     def flow(self, event: dict[str, Union[str, bool]]) -> None:
         raise Exception('You must override this method.')
@@ -36,17 +40,16 @@ class DummyConduit(ConduitBase):
 class RcloneConduit(ConduitBase):
 
     def __init__(self, *args: tuple,
-                 rc_url: str,
+                 rc_url: str = None,
                  rc_user: Optional[str] = None,
                  rc_pass: Optional[str] = None,
                  vfs: Optional[str] = None,
-                 mappings: Optional[list[str]] = None) -> None:
-        super(RcloneConduit, self).__init__(*args)
+                 **kwds) -> None:
+        super(RcloneConduit, self).__init__(*args, **kwds)
         self.rc_url = rc_url.strip().strip('/')
         self.rc_user = rc_user.strip()
         self.rc_pass = rc_pass.strip()
         self.vfs = vfs.strip()
-        self.mappings: list[tuple[str]] = parse_mappings(mappings)
 
     def flow(self, event: dict[str, Union[str, bool]]) -> None:
         '''override'''
@@ -133,11 +136,10 @@ class RcloneConduit(ConduitBase):
 
 class PlexConduit(ConduitBase):
 
-    def __init__(self, *args, plex_url: str, plex_token: str, mappings: Optional[list[str]] = None) -> None:
-        super(PlexConduit, self).__init__(*args)
+    def __init__(self, *args, plex_url: str, plex_token: str, **kwds) -> None:
+        super(PlexConduit, self).__init__(*args, **kwds)
         self.plex_url = plex_url.strip().strip('/')
         self.plex_token = plex_token.strip()
-        self.mappings: list[tuple[str]] = parse_mappings(mappings)
 
     def flow(self, event: dict[str, Union[str, bool]]) -> None:
         '''override'''
@@ -193,8 +195,8 @@ class PlexConduit(ConduitBase):
 
 class FFConduit(ConduitBase):
 
-    def __init__(self, *args, ff_url: str, ff_apikey: Optional[str] = None) -> None:
-        super(FFConduit, self).__init__(*args)
+    def __init__(self, *args, ff_url: str, ff_apikey: Optional[str] = None, **kwds) -> None:
+        super(FFConduit, self).__init__(*args, **kwds)
         self.ff_url = ff_url.strip().strip('/')
         self.ff_apikey = ff_apikey.strip()
 
@@ -217,10 +219,6 @@ class FFConduit(ConduitBase):
 class PlexmateConduit(FFConduit):
 
     PACKAGE = 'plex_mate'
-
-    def __init__(self, *args, mappings: Optional[list[str]] = None, **kwds) -> None:
-        super(PlexmateConduit, self).__init__(*args, **kwds)
-        self.mappings: list[tuple[str]] = parse_mappings(mappings)
 
     def flow(self, event: dict[str, Union[str, bool]]) -> None:
         '''override'''
@@ -294,11 +292,10 @@ class DiscordConduit(MessenserConduit):
 
     API_URL = 'https://discord.com/api'
 
-    def __init__(self, *args, webhook_id: str, webhook_token: str, mappings: Optional[list[str]] = None, **kwds) -> None:
+    def __init__(self, *args, webhook_id: str, webhook_token: str, **kwds) -> None:
         super(DiscordConduit, self).__init__(*args, **kwds)
         self.webhook_id = webhook_id
         self.webhook_token = webhook_token
-        self.mappings: list[tuple[str]] = parse_mappings(mappings)
 
     @property
     def headers(self) -> dict:

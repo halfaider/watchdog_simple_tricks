@@ -3,9 +3,10 @@
 # 이 파일을 instnace 폴더(업데이트 제외 폴더)나 다른 폴더에 복사해서 사용
 # 실행: ./watcher.sh
 # 정지: .watcher.sh stop
-WATCHER_CMD="python3 /나의/경로/watchdog_simple_tricks/watcher.py"
-LOG_CONFIG_FILE="/나의/경로/watchdog_simple_tricks/instance/log_config.yaml"
-TRICKS="/나의/경로/watchdog_simple_tricks/instance/tricks.yaml"
+BASE=$(dirname -- "${0}")
+WATCHER_CMD="python3 ${BASE}/../watcher.py"
+LOG_CONFIG_FILE="${BASE}/log_config.yaml"
+TRICKS="${BASE}/tricks.yaml"
 #TRICKS=(
 #    "/path/my_tricks1.yaml"
 #    "/path/my_tricks2.yaml"
@@ -70,18 +71,19 @@ copy() {
 
     files=("${conduits_file}" "${log_config}" "${tricks_file}" "${tricks_yaml_file}" "${watcher_file}")
 
-    echo "Current working directory: ${PWD}"
-    sample="${PWD}/example"
+    echo "Base directory: ${BASE}"
+    exit 0
+    sample="${BASE}/../files"
 
     for file in ${files[@]}; do
-        echo "example: ${sample}/${file}"
+        echo "files: ${sample}/${file}"
         [[ ! -e "${sample}/${file}" ]] && {
             echo "Not exists: ${file}"
             exit 1
         }
     done
 
-    instance="${PWD}/instance"
+    instance="${BASE}/../instance"
     [[ -d "${instance}" ]] || mkdir "${instance}"
     [[ -e "${instance}/__init__.py" ]] || touch "${instance}/__init__.py"
 
