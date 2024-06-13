@@ -114,7 +114,7 @@ class RcloneConduit(ConduitBase):
         return result
 
     def refresh(self, local_path: str, is_directory: bool = False) -> None:
-        remote_path = Path(map_path(local_path, self.mappings))
+        remote_path = Path(map_path(local_path, self.mappings)) if self.mappings else Path(local_path)
         parents: list[Path] = list(remote_path.parents)
         to_be_tested = str(remote_path) if is_directory else str(parents.pop(0))
         not_exists_paths = []
@@ -181,7 +181,7 @@ class PlexConduit(ConduitBase):
         }
 
     def get_section_by_path(self, path: str) -> int:
-        plex_path = Path(map_path(path, self.mappings))
+        plex_path = Path(map_path(path, self.mappings)) if self.mappigs else Path(path)
         sections = self.sections()
         for directory in sections['MediaContainer']['Directory']:
             for location in directory['Location']:
@@ -229,7 +229,8 @@ class PlexmateConduit(FFConduit):
                 self.scan(event['dest_path'])
 
     def scan(self, local_path: str) -> None:
-        logger.info(f'{self.scan__do_scan(map_path(local_path, self.mappings))}')
+        remote_path = map_path(local_path, self.mappings) if self.mappings else local_path
+        logger.info(f'{self.scan__do_scan(remote_path)}')
 
     @FFConduit.api
     def scan__do_scan(self, dir: str) -> dict:
@@ -335,9 +336,10 @@ class DiscordConduit(MessenserConduit):
         path = event["dest_path"] if event["event_type"] == 'moved' else event["src_path"]
         #_now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9),'utc'))
         _now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+        target_path = map_path(path, self.mappings) if self.mappings else path
         embed ={
             'type': 'rich',
             'title': event["event_type"],
-            'description': f'{map_path(path, self.mappings)}\n\n{_now}',
+            'description': f'{target_path}\n\n{_now}',
         }
         logger.debug(self.webhook(embeds=[embed]))
