@@ -4,17 +4,7 @@ import logging
 
 from watchdog.observers.api import BaseObserver, DEFAULT_OBSERVER_TIMEOUT, DEFAULT_EMITTER_TIMEOUT
 from watchdog.observers.polling import PollingEmitter
-from watchdog.utils.dirsnapshot import DirectorySnapshot, EmptyDirectorySnapshot, DirectorySnapshotDiff
-from watchdog.events import (
-    DirCreatedEvent,
-    DirDeletedEvent,
-    DirModifiedEvent,
-    DirMovedEvent,
-    FileCreatedEvent,
-    FileDeletedEvent,
-    FileModifiedEvent,
-    FileMovedEvent,
-)
+from watchdog.utils.dirsnapshot import DirectorySnapshot, EmptyDirectorySnapshot
 
 try:
     from utils import SimpleDirectorySnapShot
