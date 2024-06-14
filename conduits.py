@@ -4,6 +4,7 @@ import logging
 import shlex
 import subprocess
 import datetime
+import urllib.parse
 from pathlib import Path
 from typing import Optional, Union, Any
 
@@ -196,6 +197,8 @@ class PlexConduit(ConduitBase):
 
 class FFConduit(ConduitBase):
 
+    PACKAGE = 'system'
+
     def __init__(self, *args, ff_url: str, ff_apikey: Optional[str] = None, **kwds) -> None:
         super(FFConduit, self).__init__(*args, **kwds)
         self.ff_url = ff_url.strip().strip('/')
@@ -205,16 +208,22 @@ class FFConduit(ConduitBase):
         '''override'''
         raise Exception('You must override this method.')
 
-    def api(method) -> callable:
-        @functools.wraps(method)
-        def wrapper(self, *args: tuple, **kwds: dict) -> dict[str, Any]:
-            data: dict = method(self, *args, **kwds)
-            package = data.pop('package', 'system')
-            command = f'{package}/api/' + '/'.join(method.__name__.split('__'))
-            data['apikey'] = self.ff_apikey
-            logger.debug(f'{command}: {data}')
-            return parse_json_response(request('POST', f'{self.ff_url}/{command}', data=data))
-        return wrapper
+    def api(method: str = 'POST') -> callable:
+        def decorator(func) -> callable:
+            @functools.wraps(func)
+            def wrapper(self, *args: tuple, **kwds: dict) -> dict[str, Any]:
+                data: dict = func(self, *args, **kwds)
+                data['apikey'] = self.ff_apikey
+                command = f'{self.PACKAGE}/api/' + '/'.join(func.__name__.split('__'))
+                logger.debug(f'{command}: {data}')
+                match method:
+                    case 'POST':
+                        return parse_json_response(request('POST', f'{self.ff_url}/{command}', data=data))
+                    case 'GET':
+                        query = urllib.parse.urlencode(data)
+                        return parse_json_response(request('GET', f'{self.ff_url}/{command}?{query}'))
+            return wrapper
+        return decorator
 
 
 class PlexmateConduit(FFConduit):
@@ -223,10 +232,10 @@ class PlexmateConduit(FFConduit):
 
     def flow(self, event: dict[str, Union[str, bool]]) -> None:
         '''override'''
-        if not event['is_directory']:
+        if event.get('event_type') == 'moved':
+            self.scan(event['dest_path'])
+        else:
             self.scan(event['src_path'])
-            if event.get('event_type') == 'moved':
-                self.scan(event['dest_path'])
 
     def scan(self, local_path: str) -> None:
         remote_path = map_path(local_path, self.mappings) if self.mappings else local_path
@@ -235,10 +244,39 @@ class PlexmateConduit(FFConduit):
     @FFConduit.api
     def scan__do_scan(self, dir: str) -> dict:
         return {
-            'package': self.PACKAGE,
             'target': dir,
-            'mode': 'ADD'
+            'scan_mode': 'ADD'
         }
+
+
+class GDSToolConduit(FFConduit):
+
+    PACKAGE = 'gds_tool'
+
+    def flow(self, event: dict[str, Union[str, bool]]) -> None:
+        '''override'''
+        match (event.get('event_type'), event.get('is_directory')):
+            case 'created', _:
+                self.fp__broadcast(event.get('src_path'), 'ADD')
+            case 'deleted', True:
+                self.fp__broadcast(event.get('src_path'), 'REMOVE_FOLDER')
+            case 'deleted', False:
+                self.fp__broadcast(event.get('src_path'), 'REMOVE_FILE')
+            case 'moved', _:
+                # moved: removed and created
+                #self.fp__broadcast(event.get('src_path'), 'REFRESH')
+                self.fp__broadcast(event.get('dest_path'), 'ADD')
+
+    @FFConduit.api('GET')
+    def fp__broadcast(self, path: str, mode: str) -> dict:
+        gds_path = map_path(path, self.mappings) if self.mappings else path
+        if not gds_path.startswith('/ROOT/GDRIVE'):
+            raise Exception(f'gds_path must start with "/ROOT/GDRIVE/": {gds_path}')
+        else:
+            return {
+                'gds_path': gds_path,
+                'scan_mode': mode
+            }
 
 
 class ShellCommandConduit(ConduitBase):

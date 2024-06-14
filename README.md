@@ -187,13 +187,25 @@ tricks:
 ```
 
 ### conduit
-`conduit`은 파일 이벤트 발생시 특정 서비스에 해당 내용을 전달하는 역할을 합니다. 기본적으로 rclone의 vfs/refresh, plex 웹 스캔 요청, plex_mate 스캔 요청, 디스코드 웹훅, 쉘 스크립트 실행이 있습니다. 추가적인 기능은 `instance` 폴더의 `conduits.py`에서 직접 구현할 수 있습니다.
+`conduit`은 파일 이벤트 발생시 특정 서비스에 해당 내용을 전달하는 역할을 합니다. 기본적으로 `../watchdog_simple_tricks/conduits.py`에는 다음의 기능을 하는 `conduit`이 정의되어 있어요.
+  - `DummyConduit`: 단순 로그만 출력합니다.
+  - `RcloneConduit`: Rrclone rc의 `vfs/refresh`를 요청합니다.
+  - `PlexConduit`: plex 서버에 웹 스캔 요청을 합니다.
+  - `PlexmateConduit`: plex_mate 플러그인에 스캔 요청을 합니다.
+  - `GDSToolConduit`: gds_tool 플러그인에 변경사항 방송을 요청합니다.
+  - `ShellCommandConduit`: 쉘 명령어를 실행합니다.
+  - `DiscordConduit`: 디스코드 웹훅으로 변경 사항을 전송합니다.
+
+추가적인 기능은 `instance` 폴더의 `conduits.py`에서 직접 구현할 수 있습니다.
+
+
+`conduit`에서 기본적으로 사용하는 키워드는 아래와 같습니다. 지정된 `conduit` 클래스를 생성할 때 값이 인자로 전달됩니다. 기본값이 명시된 키워드는 생략시 기본값이 입력됩니다.
 
 - `name`: 구분용 이름입니다.
-- `class`: 사용한 `conduit` 클래스입니다.
-- `priority`: 우선순위가 높을 수록 먼저 실행됩니다.
-- `events`: 처리할 파일 이벤트 목록입니다. `created`, `deleted`, `moved`, `modified`, `opened`, `closed`
-- `mappings`: 경로 변경 규칙 (변경대상:변경값)
+- `class`: 사용할 `conduit` 클래스입니다.
+- `priority`: 우선순위가 높을 수록 먼저 실행됩니다. (기본값: 0)
+- `events`: 처리할 파일 이벤트 목록입니다. (기본값: `created`, `deleted`, `moved`, `modified`, `opened`, `closed`)
+- `mappings`: 경로 변경 규칙 (변경대상:변경값) (기본값: None)
 
 ```yaml
 observer: polling
@@ -266,7 +278,7 @@ tricks:
 - `ff_url`: flaskfarm 주소
 - `ff_apikey`: flaskfarm API 키
 
-`PlexConduit`은 추가로 아래의 값을 입력받습니다.
+`PlexConduit`, `GDSToolConduit`은 추가로 아래의 값을 입력받습니다.
 
 - `plex_url`: 플렉스 주소
 - `plex_token`: 플렉스 토큰값
@@ -391,4 +403,124 @@ handlers:
     maxBytes: 5242880
     backupCount: 5
 ...
+```
+
+### 설정 예시
+
+아래의 경로를 사용중이라고 가정할 경우...
+```
+읽기 전용 GDS 마운트 경로: /mnt/gds-metadata/GDRIVE
+실제 PLEX에서 사용중인 GDS 경로: /mnt/gds/GDRIVE
+이 패키지가 설치된 경로: /data/commands/watchdog_simple_tricks
+```
+
+#### `watcher.sh`
+
+경로: `/data/commands/watchdog_simple_tricks/instance/watcher.sh`
+
+`watcher.sh`파일은 `instance` 폴더에 넣을 필요 없이 아무곳에나 저장해도 됩니다. 소스의 `watcher.sh`와 분리하기 위해서 `instance`라는 임의 폴더에 넣은 거예요.
+
+```bash
+BASE="/data/commands/watchdog_simple_tricks"
+WATCHER_CMD="python3 ${BASE}/watcher.py"
+LOG_CONFIG_FILE="${BASE}/instance/log_config.yaml"
+TRICKS="${BASE}/instance/tricks.yaml"
+DAEMON=false # false로 먼저 실행해서 에러 로그가 있나 확인 후 true로 변경하세요.
+TERMINATION_TIME_OUT=30
+```
+
+#### `tricks.yaml`
+
+경로: `/data/commands/watchdog_simple_tricks/instance/tricks.yaml`
+
+마찬가지로 `instance`라는 임의 폴더에 넣은 거예요.
+
+```yaml
+observer: polling # GDS는 polling, 복사요청하는 개인 구글 드라이브도 polling
+timeout: 60
+python_path: '/data/src/watchdog_simple_tricks/;/data/src/watchdog_simple_tricks/instance'
+tricks:
+  - tricks.SimpleTrick:
+      patterns: # 생략 가능
+      ignore_patterns: # 생략 가능
+      ignore_directories: # 생략 가능 (기본값: false)
+      case_sensitive: # 생략 가능 (기본값: false)
+      recursive: # 생략 가능 (기본값: false)
+      dirs: # 감시하려는 폴더
+        - '/mnt/gds-metadata/GDRIVE/VIDEO/방송중/외국'
+      event_interval: #생략 가능 (기본값: 0)
+      conduits:
+        - name: 'plex_mate scan'
+          class: 'conduits.PlexmateConduit'
+          events: ['created', 'moved']
+          priority: 40
+          ff_url: 'http://flaskfarm:9999'
+          ff_apikey: 'abcdefghig'
+          mappings:
+            - '/mnt/gds-metadata/GDRIVE:/mnt/gds/GDRIVE' # plex_mate는 /mnt/gds/GDRIVE 경로를 사용중이라서 변환
+```
+
+이렇게 설정하면 `created`나 `moved`일 경우 `plex_mate`에 스캔 요청이 추가됩니다. `vfs/refresh`는 `plex_mate`에서 설정할 수 있으니 그걸 이용하면 돼요. 아니면 여기에 `RcloneConduit`을 넣어서 `vfs/refresh`를 해주면 됩니다.
+```yaml
+observer: polling # GDS는 polling, 복사요청하는 개인 구글 드라이브도 polling
+timeout: 60
+python_path: '/data/src/watchdog_simple_tricks/;/data/src/watchdog_simple_tricks/instance'
+tricks:
+  - tricks.SimpleTrick:
+      patterns: # 생략 가능
+      ignore_patterns: # 생략 가능
+      ignore_directories: # 생략 가능 (기본값: false)
+      case_sensitive: # 생략 가능 (기본값: false)
+      recursive: # 생략 가능 (기본값: false)
+      dirs: # 감시하려는 폴더
+        - '/mnt/gds-metadata/GDRIVE/VIDEO/방송중/외국'
+      event_interval: #생략 가능 (기본값: 0)
+      conduits:
+        - name: 'plex_mate scan'
+          class: 'conduits.PlexmateConduit'
+          events: ['created', 'moved']
+          priority: 40
+          ff_url: 'http://flaskfarm:9999'
+          ff_apikey: 'abcdefghig'
+          mappings:
+            - '/mnt/gds-metadata/GDRIVE:/mnt/gds/GDRIVE' # plex_mate는 /mnt/gds/GDRIVE 경로를 사용중이라서 변환
+        - name: 'rclone vfs/refresh'
+          class: 'conduits.RcloneConduit'
+          events: ['created', 'moved']
+          priority: 50 # plex_mate scan보다 우선 실행되도록
+          rc_url: 'http://172.17.0.1:5275'
+          rc_user: ''
+          rc_pass: ''
+          vfs: 'gds:' # 실제 사용중인 GDS 리모트 이름
+          mappings:
+            - '/mnt/gds-metadata:' # 리모트 경로에는 /mnt/gds-metadat가 없으니까 삭제
+```
+
+이렇게 설정하면 `priority`가 더 높은 `RcloneConduit`이 먼저 실행되어서 `vfs/refresh`를 한 다음에 `PlexmateConduit`이 실행되어서 스캔 요청을 하게 됩니다.
+
+#### gds_tool 방송용
+
+```yaml
+observer: polling # GDS는 polling, 복사요청하는 개인 구글 드라이브도 polling
+timeout: 60
+python_path: '/data/src/watchdog_simple_tricks/;/data/src/watchdog_simple_tricks/instance'
+tricks:
+  - tricks.SimpleTrick:
+      patterns: # 생략 가능
+      ignore_patterns: # 생략 가능
+      ignore_directories: # 생략 가능 (기본값: false)
+      case_sensitive: # 생략 가능 (기본값: false)
+      recursive: # 생략 가능 (기본값: false)
+      dirs: # 감시하려는 폴더
+        - '/mnt/gds-metadata/GDRIVE/VIDEO/방송중/일본 애니메이션'
+        - '/mnt/gds-metadata/GDRIVE/VIDEO/방송중/외국'
+      event_interval: #생략 가능 (기본값: 0)
+      conduits:
+        - name: 'gds_tool broadcast'
+          class: 'conduits.GDSToolConduit'
+          priority: 40
+          ff_url: 'http://flaskfarm:9999'
+          ff_apikey: 'abcdefghig'
+          mappings:
+            - '/mnt/gds-metadata/GDRIVE:/ROOT/GDRIVE' # 방송용은 /ROOT/GDRIVE 로 시작되어야 하므로...
 ```
