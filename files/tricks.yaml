@@ -21,7 +21,8 @@ tricks:
         - './instance'
       conduits:
         - name: 'my conduit'
-        - class: 'instance.conduits.MyConduit'
+          class: 'instance.conduits.MyConduit'
+          my_setting: 'Hello'
   - tricks.SimpleTrick:
       # 감시할 경로의 포함 필터
       # 기본 값: ['*']
