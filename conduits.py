@@ -241,7 +241,7 @@ class PlexmateConduit(FFConduit):
         remote_path = map_path(local_path, self.mappings) if self.mappings else local_path
         logger.info(f'{self.scan__do_scan(remote_path)}')
 
-    @FFConduit.api
+    @FFConduit.api('POST')
     def scan__do_scan(self, dir: str) -> dict:
         return {
             'target': dir,
