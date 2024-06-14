@@ -29,8 +29,6 @@ EVENTS = [
 
 class TrickBase(Trick):
 
-    conduits = []
-
     def __init__(self, patterns: Optional[Iterable] = None,
                  ignore_patterns: Optional[Iterable] = None,
                  ignore_directories: Optional[bool] = False,
@@ -38,6 +36,7 @@ class TrickBase(Trick):
                  conduits: Optional[Iterable] = None,
                  event_interval: Optional[int] = 0) -> None:
         super(TrickBase, self).__init__(patterns, ignore_patterns, ignore_directories, case_sensitive)
+        self.conduits = []
         self.event_interval = event_interval
         if conduits:
             for conduit in conduits:
