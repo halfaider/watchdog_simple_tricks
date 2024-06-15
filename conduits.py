@@ -182,7 +182,7 @@ class PlexConduit(ConduitBase):
         }
 
     def get_section_by_path(self, path: str) -> int:
-        plex_path = Path(map_path(path, self.mappings)) if self.mappigs else Path(path)
+        plex_path = Path(map_path(path, self.mappings)) if self.mappings else Path(path)
         sections = self.sections()
         for directory in sections['MediaContainer']['Directory']:
             for location in directory['Location']:
