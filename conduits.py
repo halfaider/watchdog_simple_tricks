@@ -115,7 +115,8 @@ class RcloneConduit(ConduitBase):
         return result
 
     def refresh(self, local_path: str, is_directory: bool = False) -> None:
-        remote_path = Path(map_path(local_path, self.mappings)) if self.mappings else Path(local_path)
+        local_path = Path(local_path)
+        remote_path = Path(map_path(str(local_path), self.mappings)) if self.mappings else local_path
         parents: list[Path] = list(remote_path.parents)
         to_be_tested = str(remote_path) if is_directory else str(parents.pop(0))
         not_exists_paths = []
@@ -129,11 +130,11 @@ class RcloneConduit(ConduitBase):
                 logger.warning(f'Hit the top-level path.')
                 break
         for path in not_exists_paths:
+            if local_path.exists():
+                break
             result = self._refresh(path, self.vfs)
             if not result.get(path) == 'OK':
-                logger.error(f'Could not refresh: "{str(remote_path)}" result="{result}"')
                 break
-        logger.debug(f'{result=}')
 
 
 class PlexConduit(ConduitBase):

@@ -34,6 +34,7 @@ tricks:
       ignore_patterns:
         - '*.json'
         - '*.yml'
+        - '*.yaml'
         - '*.smi'
         - '*.srt'
         - '*.txt'
