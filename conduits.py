@@ -377,5 +377,4 @@ class DiscordConduit(MessenserConduit):
             'title': event["event_type"],
             'description': f'{target_path}\n\n{_now}',
         }
-        logger.debug(embed)
         self.webhook(embeds=[embed])
