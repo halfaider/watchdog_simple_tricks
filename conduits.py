@@ -25,8 +25,7 @@ class ConduitBase:
         self.name = name
         self.events = events
         self.priority = priority
-        if mappings:
-            self.mappings: list[tuple[str]] = parse_mappings(mappings)
+        self.mappings = parse_mappings(mappings) if mappings else None
 
     def flow(self, event: dict[str, Union[str, bool]]) -> None:
         raise Exception('You must override this method.')
