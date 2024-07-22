@@ -369,8 +369,6 @@ class DiscordConduit(MessenserConduit):
 
     def flow(self, event: dict[str, Union[str, bool]]) -> None:
         '''override'''
-        if event['is_directory']:
-            return
         path = event["dest_path"] if event["event_type"] == 'moved' else event["src_path"]
         #_now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9),'utc'))
         _now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
@@ -380,4 +378,3 @@ class DiscordConduit(MessenserConduit):
             'title': event["event_type"],
             'description': f'{target_path}\n\n{_now}',
         }
-        logger.debug(self.webhook(embeds=[embed]))

@@ -148,8 +148,7 @@ def request(method: str, url: str, data: Optional[dict] = None, timeout: Union[i
 
 def parse_json_response(response: requests.Response) -> dict[str, Any]:
     try:
-        if response.text:
-            result = response.json()
+        result = response.json()
     except Exception as e:
         result = {
             'status_code': response.status_code,
