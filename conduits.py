@@ -347,10 +347,10 @@ class DiscordConduit(MessenserConduit):
     def api(func) -> callable:
         @functools.wraps(func)
         def wrapper(self, *args, **kwds) -> dict:
-            params = func(self, *args, ** kwds)
+            params = func(self, *args, **kwds)
             api = params.pop('api')
             method = params.pop('method')
-            logger.debug(f'{api}: {params}')
+            logger.debug(f'{params}')
             return parse_json_response(request(method, f'{self.API_URL}{api}', json=params, headers=self.headers))
         return wrapper
 
@@ -372,7 +372,7 @@ class DiscordConduit(MessenserConduit):
         path = event["dest_path"] if event["event_type"] == 'moved' else event["src_path"]
         _now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
         target_path = map_path(path, self.mappings) if self.mappings else path
-        embed ={
+        embed = {
             'type': 'rich',
             'title': event["event_type"],
             'description': f'{target_path}\n\n{_now}',
